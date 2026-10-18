@@ -1,0 +1,14 @@
+requests
+pandas
+pyarrow
+numpy
+nltk
+gensim
+scikit-learn
+networkx
+matplotlib
+torch
+opencv-python
+Pillow
+ipywidgets
+joblib
