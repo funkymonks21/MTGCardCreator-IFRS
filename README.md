@@ -22,14 +22,15 @@ Executar tudo* (`Ctrl+F9`). Não é necessário instalar nada localmente nem
 treinar nenhum modelo — o notebook usa os artefatos já treinados que ficam
 versionados em `models/`.
 
-> Status atual: obtenção dos dados (Scryfall) + geração de texto via
-> cadeia de Markov por cor (`src/pipeline/texto_markov.py`) já
-> funcionando, com peso ajustável entre vocabulário da cor e modelo
-> geral. Custo de mana e imagem final ainda são placeholders. As
-> próximas etapas (regressão do custo em scikit-learn, classificador de
-> cor em PyTorch como métrica de diagnóstico, e composição final em
-> OpenCV) vão preencher o que falta em `src/pipeline/`, sem alterar a
-> interface do notebook.
+> Status atual: obtenção dos dados (Scryfall), geração de texto via
+> cadeia de Markov por cor (`src/pipeline/texto_markov.py`) e geração de
+> custo de mana + poder/resistência via regressão scikit-learn
+> (`src/pipeline/estrutura.py`) já funcionando, com peso da cor
+> ajustável. A imagem final ainda é um placeholder (Pillow). As próximas
+> etapas (classificador de cor em PyTorch como métrica de diagnóstico,
+> grafo de transições com NetworkX/Matplotlib, arte via API de imagem e
+> composição final em OpenCV) vão preencher o que falta em
+> `src/pipeline/`, sem alterar a interface do notebook.
 
 ## Stack
 
@@ -50,7 +51,8 @@ MTGCardCreator-IFRS/
 │   ├── raw/              # JSON bruto baixado da Scryfall (gitignored)
 │   └── processed/        # cards.csv / cards.parquet prontos para uso (gitignored)
 ├── models/
-│   └── modelo_markov.pkl     # cadeia de Markov por cor, já treinada (versionado no git)
+│   ├── modelo_markov.pkl          # cadeia de Markov por cor, já treinada (versionado no git)
+│   └── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
 ├── notebooks/
 │   └── demo.ipynb              # interface do projeto: roda no Colab, chama o pipeline
 ├── src/
@@ -60,6 +62,8 @@ MTGCardCreator-IFRS/
 │       ├── generator.py                # ponto de entrada do pipeline (gerar_carta)
 │       ├── texto_markov.py             # geração de texto via cadeia de Markov por cor
 │       ├── treinar_modelo_markov.py    # script de treino -> gera models/modelo_markov.pkl
+│       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
+│       ├── treinar_modelos_estruturais.py  # script de treino -> models/modelos_estruturais.pkl
 │       ├── mecanicas.py                # [não usado na geração] inferência de mecânica, usado só como semente opcional
 │       └── color_pie.py                # [não usado na geração] regras de color pie, mantido como registro
 ├── requirements.txt
@@ -143,21 +147,27 @@ print(df.shape)
 print(df[["name", "mana_cost", "colors", "oracle_text"]].head())
 ```
 
-### 6. Treinar o modelo de geração de texto
+### 6. Treinar os modelos
 
 ```bash
 python src/pipeline/treinar_modelo_markov.py
+python src/pipeline/treinar_modelos_estruturais.py
 ```
 
-Isso treina a cadeia de Markov (bigramas/trigramas) por cor sobre o
+O primeiro treina a cadeia de Markov (bigramas/trigramas) por cor sobre o
 `oracle_text` de `data/processed/cards.parquet` e salva o resultado em
-`models/modelo_markov.pkl`. **Esse arquivo precisa ser commitado** (ao
-contrário de `data/`, a pasta `models/` não está no `.gitignore`) — é ele
-que o Colab carrega, sem precisar rodar os passos 4-6 de novo.
+`models/modelo_markov.pkl`. O segundo treina as duas regressões
+scikit-learn (custo de mana e poder/resistência -- ver
+`src/pipeline/estrutura.py`), imprime métricas de MAE/R² no holdout e salva
+`models/modelos_estruturais.pkl`.
+
+**Esses arquivos precisam ser commitados** (ao contrário de `data/`, a
+pasta `models/` não está no `.gitignore`) — são eles que o Colab carrega,
+sem precisar rodar os passos 4-6 de novo.
 
 ```bash
-git add models/modelo_markov.pkl
-git commit -m "Treina modelo de geracao de texto (Markov por cor)"
+git add models/modelo_markov.pkl models/modelos_estruturais.pkl
+git commit -m "Treina modelos de texto (Markov) e estruturais (custo/P-T)"
 git push
 ```
 
@@ -170,6 +180,8 @@ from pipeline import gerar_carta
 
 carta = gerar_carta("Murder", "Azul", peso_cor=0.7)
 print(carta.texto_regras)
+print("custo de mana:", carta.custo_mana)
+print("poder/resistência:", carta.poder, "/", carta.resistencia)
 print("semente:", carta.semente_usada)
 ```
 
@@ -190,7 +202,8 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
       usado na geração atual (ver decisão de design no topo deste README)
 - [x] Geração de texto via cadeia de Markov por cor, com peso ajustável
       — `src/pipeline/texto_markov.py`
-- [ ] Regressão do custo de mana (Scikit-Learn)
+- [x] Regressão do custo de mana e de poder/resistência (Scikit-Learn)
+      — `src/pipeline/estrutura.py`
 - [ ] Classificador de cor em PyTorch — não mais como filtro, mas como
       *métrica de diagnóstico* ("o quão on-color este texto gerado
       ficou?"), compatível com a escolha de deixar a geração livre

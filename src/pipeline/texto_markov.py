@@ -28,8 +28,8 @@ completo. É o "dial" que o projeto pediu para controlar o peso da cor.
 A mesma mistura (função `_misturar`) também é usada para sortear as
 keywords da carta -- ver abaixo.
 
-Duas correções importantes feitas após os primeiros testes
-============================================================
+Três correções importantes feitas após os primeiros testes
+===========================================================
 1. KEYWORDS SEPARADAS DO CORPO DO TEXTO
    No oracle_text real, uma carta como "Serra Angel" tem o texto em DUAS
    partes bem distintas: uma linha só com keywords ("Flying, vigilance")
@@ -56,6 +56,28 @@ Duas correções importantes feitas após os primeiros testes
    substituído pelo nome real que o usuário digitou -- então a carta
    "fala de si mesma" usando o próprio nome, como nas cartas antigas,
    só que sem o viés estatístico do "this creature" genérico.
+
+3. HABILIDADES ATIVADAS E CUSTOS COM SÍMBOLOS ({T}, {2}, {W}...)
+   Habilidades ativadas no Oracle Text aparecem como
+   "{T}: Add {G}." ou "{1}, {T}: Draw a card." -- custo (símbolos de
+   tap/mana/genérico, às vezes com itens não-mana separados por
+   vírgula), dois-pontos, efeito. A primeira versão deste módulo usava um
+   filtro `^[a-zA-Z']+$` na tokenização, que DESCARTAVA tudo que não fosse
+   letra: os símbolos {T}/{W}/{2}, os numerais e a pontuação sumiam, então
+   "{T}: Add {G}." virava só ["add"] e a cadeia nunca aprendia a estrutura
+   de custo. Agora:
+   a) os símbolos {...} viram tokens atômicos preservados verbatim
+      ({T}, {W}, {2}, {W/U}, {X}... -- o que o corpus tiver);
+   b) vírgula e dois-pontos também são tokens (separadores de custo);
+   c) na junção, símbolos adjacentes se agrudam ({2}{U}) e , / : grudam
+      no token anterior, como no Oracle real;
+   d) um "lint" (_corrigir_habilidade_ativada) garante a regra do usuário:
+      linha iniciada por custo precisa de ":" antes do efeito -- e de ","
+      entre itens de custo distintos ({T}, {2}: ...). Sem isso, a cadeia
+      (mistura cor/global + backoff) às vezes gerava "{T} draw a card".
+   ATENÇÃO: o modelo pré-treinado (models/modelo_markov.pkl) precisa ser
+   re-treinado depois desta mudança, senão o vocabulário não tem os
+   símbolos e a geração nunca os emite.
 
 Por que misturar com um modelo global (e não só usar o da cor)
 ================================================================
@@ -123,6 +145,23 @@ _TIPOS_AUTORREFERENCIA = (
 _PADRAO_AUTORREFERENCIA_GENERICA = re.compile(
     r"\bthis (" + "|".join(_TIPOS_AUTORREFERENCIA) + r")\b", re.IGNORECASE
 )
+
+# Símbolos de custo/mana do Oracle Text ({T}, {W}, {U}, {B}, {R}, {G},
+# {C}, {X}, {2}, {W/U}, {W/P}...). Cada "{...}" vira UM token atômico,
+# preservado verbatim -- ver item 3 no docstring do módulo.
+_PADRAO_SIMBOLO = re.compile(r"\{[^{}]*\}")
+
+# Símbolos de girar/desgirar. Quando encostam em outro símbolo ({T}{2}),
+# o Oracle real separa com vírgula ("{T}, {2}"), porque são itens de custo
+# DISTINTOS; já símbolos de mana puros se agrudam ("{2}{U}" = um custo
+# único). Usado por _corrigir_habilidade_ativada.
+_SIMBOLOS_TAP = {"{T}", "{Q}"}
+
+
+def _eh_simbolo(token: str) -> bool:
+    """True se o token é um símbolo de custo/mana do Oracle ({T}, {2},
+    {W/U}...)."""
+    return bool(_PADRAO_SIMBOLO.fullmatch(token))
 
 
 def _cor_em(cs, cor: str) -> bool:
@@ -210,13 +249,140 @@ def _normalizar_autorreferencia(linha: str, nome_carta: str) -> str:
 
 
 def _tokenizar(texto: str) -> List[str]:
+    """Tokeniza uma linha do oracle_text, separando-a em dois tipos de
+    token: símbolos de custo/mana ({T}, {2}, {W/U}...), preservados
+    VERBATIM como tokens atômicos, e o texto ao redor, tokenizado pelo
+    NLTK. Ver item 3 no docstring do módulo -- sem isso os símbolos e a
+    pontuação de custo eram descartados e a estrutura de habilidade
+    ativada se perdia."""
     _garantir_nltk()
+    resultado: List[str] = []
+    pos = 0
+    for m in _PADRAO_SIMBOLO.finditer(texto):
+        resultado.extend(_tokenizar_texto(texto[pos:m.start()]))
+        resultado.append(m.group(0))
+        pos = m.end()
+    resultado.extend(_tokenizar_texto(texto[pos:]))
+    return resultado
+
+
+def _tokenizar_texto(texto: str) -> List[str]:
+    """Tokeniza um trecho de oracle_text SEM símbolos {...}. Mantém apenas:
+      - palavras (minúsculas; o token especial de autorreferência "~" é
+        preservado como está, ver _normalizar_autorreferencia);
+      - vírgula e dois-pontos, que são os separadores de custo/efeito das
+        habilidades ativadas ("{1}, {T}: ...") e também aparecem no meio
+        das frases normais.
+    Qualquer outra pontuação (ponto final, aspas, parênteses etc.) é
+    descartada -- o ponto final é re-adicionado na saída final."""
     tokens = nltk.word_tokenize(texto)
     resultado = []
     for t in tokens:
-        if t == TOKEN_AUTORREFERENCIA or re.match(r"^[a-zA-Z']+$", t):
-            resultado.append(t.lower() if t != TOKEN_AUTORREFERENCIA else t)
+        if t in (",", ":"):
+            resultado.append(t)
+        elif t == TOKEN_AUTORREFERENCIA or re.match(r"^[a-zA-Z']+$", t):
+            resultado.append(t if t == TOKEN_AUTORREFERENCIA else t.lower())
     return resultado
+
+
+def _corrigir_habilidade_ativada(tokens: List[str]) -> List[str]:
+    """Aplica a regra de formatação de habilidades ativadas (ver item 3 no
+    docstring do módulo): se a linha COMEÇA com um custo (símbolos), ele
+    tem que ser seguido de ":" antes do efeito -- a menos que a linha já
+    tenha um ":" em algum lugar. Também separa com "," os itens de custo
+    distintos ({T}{2} -> "{T}, {2}"), mantendo agrupados os símbolos de um
+    mesmo custo ({2}{U} continua "{2}{U}").
+
+    É um "lint" de segurança: como a cadeia mistura o modelo da cor com o
+    global e faz backoff até unigrama, ela às vezes gera sequências como
+    "{T} draw a card" (sem ":") -- o corpo do texto gerado é ajustado aqui
+    antes de virar a linha final."""
+    tokens = list(tokens)
+
+    # Tira pontuação pendurada do fim (a cadeia pode ter terminado no meio
+    # do custo) -- o ponto final é adicionado depois, na montagem da linha.
+    while tokens and tokens[-1] in (",", ":"):
+        tokens.pop()
+
+    if not tokens or not _eh_simbolo(tokens[0]):
+        return tokens  # não é habilidade ativada; nada a corrigir
+
+    # Cluster de custo no começo: símbolos e vírgulas consecutivos.
+    fim_custo = 0
+    while fim_custo < len(tokens) and (
+        _eh_simbolo(tokens[fim_custo]) or tokens[fim_custo] == ","
+    ):
+        fim_custo += 1
+
+    custo = tokens[:fim_custo]
+    resto = tokens[fim_custo:]
+
+    custo_ajustado: List[str] = []
+    for tok in custo:
+        anterior = custo_ajustado[-1] if custo_ajustado else None
+        if (
+            anterior is not None
+            and _eh_simbolo(anterior)
+            and _eh_simbolo(tok)
+            and (anterior in _SIMBOLOS_TAP or tok in _SIMBOLOS_TAP)
+        ):
+            # Girar ({T}/{Q}) não se agruma a outro símbolo: são itens de
+            # custo distintos, separados por vírgula no Oracle real.
+            custo_ajustado.append(",")
+        custo_ajustado.append(tok)
+
+    if ":" not in tokens and resto:
+        custo_ajustado.append(":")
+
+    resultado = custo_ajustado + resto
+
+    # Normaliza repetições de pontuação vindas de custos quebrados, para
+    # não sair coisas como "{T},:" ou "{T},," no texto final:
+    #   - vírgula logo antes de ":" desaparece ("{T}, :" -> "{T}:");
+    #   - vírgulas/dois-pontos consecutivos colapsam em um só.
+    limpo: List[str] = []
+    for tok in resultado:
+        if tok in (",", ":") and limpo and limpo[-1] in (",", ":"):
+            if tok == ":":
+                limpo[-1] = ":"  # a vírgula antes do ":" vira o próprio ":"
+            continue
+        limpo.append(tok)
+    return limpo
+
+
+def _juntar_tokens(tokens: List[str]) -> str:
+    """Junta os tokens na formatação do Oracle real:
+      - vírgula e dois-pontos grudam no token anterior ("{T}," e "{T}:");
+      - símbolos de custo adjacentes se agrudam ("{2}{U}", não "{2} {U}");
+      - o restante é separado por espaço.
+    O ponto final não entra aqui -- é adicionado por _gerar_corpo."""
+    texto = ""
+    anterior: Optional[str] = None
+    for tok in tokens:
+        if not texto:
+            texto = tok
+        elif tok in (",", ":"):
+            texto += tok  # gruda no token anterior
+        elif _eh_simbolo(tok) and _eh_simbolo(anterior):
+            texto += tok  # símbolos do mesmo custo se agrudam ({2}{U})
+        else:
+            texto += " " + tok
+        anterior = tok
+    return texto
+
+
+def _capitalizar(texto: str) -> str:
+    """Deixa maiúscula a primeira letra do texto e também a primeira letra
+    do EFEITO de uma habilidade ativada (depois do ":"), como no Oracle
+    real ("{T}: Add {G}.", "{1}, Sacrifice an artifact: Draw a card.").
+    Os símbolos {...} são maiúsculos e não são afetados."""
+    if not texto:
+        return texto
+    texto = re.sub(r"[a-z]", lambda m: m.group(0).upper(), texto, count=1)
+    m = re.search(r":[^a-zA-Z]*([a-z])", texto)
+    if m:
+        texto = texto[: m.start(1)] + m.group(1).upper() + texto[m.end(1):]
+    return texto
 
 
 def _misturar(dist_cor: Counter, dist_global: Counter, peso_cor: float) -> Counter:
@@ -424,8 +590,12 @@ class ModeloMarkovPorCor:
         nome_para_substituir = nome if nome else "This creature"
         palavras_finais = [nome_para_substituir if p == TOKEN_AUTORREFERENCIA else p for p in palavras_geradas]
 
-        texto = " ".join(palavras_finais)
-        texto_formatado = f"{texto[:1].upper()}{texto[1:]}." if texto else ""
+        # Ajusta a estrutura de habilidade ativada (custo + ":" + efeito,
+        # ver item 3 do docstring do módulo) e junta os tokens na
+        # formatação do Oracle real (símbolos agrudados, "," / ":" colados).
+        palavras_finais = _corrigir_habilidade_ativada(palavras_finais)
+        texto = _juntar_tokens(palavras_finais)
+        texto_formatado = f"{_capitalizar(texto)}." if texto else ""
         return texto_formatado, semente
 
     # -- geração: keywords ---------------------------------------------
