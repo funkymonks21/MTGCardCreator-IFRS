@@ -20,7 +20,9 @@ no relatório do projeto.
 """
 
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
+
 from PIL import Image, ImageDraw
 
 from .texto_markov import carregar_modelo
@@ -66,6 +68,7 @@ class Carta:
     # Campos de transparência: mostram COMO o sistema chegou no resultado.
     peso_cor: float = 0.0
     semente_usada: str = ""
+    palavras_chave: List[str] = field(default_factory=list)
 
 
 def gerar_carta(nome: str, cor: str, peso_cor: float = PESO_COR_PADRAO) -> Carta:
@@ -107,6 +110,7 @@ def gerar_carta(nome: str, cor: str, peso_cor: float = PESO_COR_PADRAO) -> Carta
         imagem_final=imagem,
         peso_cor=peso_cor,
         semente_usada=resultado["semente"] or "",
+        palavras_chave=resultado["palavras_chave"],
     )
 
 
@@ -153,14 +157,25 @@ def _remover_acentos(texto: str) -> str:
 
 
 def _quebrar_linhas(texto: str, largura_max: int) -> str:
-    """Util simples para não estourar a caixa de texto do placeholder."""
-    palavras = texto.split()
-    linhas, linha_atual = [], ""
-    for palavra in palavras:
-        if len(linha_atual) + len(palavra) + 1 <= largura_max:
-            linha_atual = f"{linha_atual} {palavra}".strip()
-        else:
-            linhas.append(linha_atual)
-            linha_atual = palavra
-    linhas.append(linha_atual)
-    return "\n".join(linhas)
+    """Util simples para não estourar a caixa de texto do placeholder.
+
+    Importante: respeita as quebras de linha que já vêm em `texto` (ex: a
+    linha de keywords separada do corpo, ver pipeline.texto_markov) --
+    cada linha original é quebrada/reflow independentemente, nunca
+    juntada com a linha seguinte. Um `texto.split()` ingênuo trataria
+    "\n" como só mais um espaço e desfaria essa separação visual."""
+    linhas_finais = []
+    for linha_original in texto.split("\n"):
+        palavras = linha_original.split()
+        if not palavras:
+            linhas_finais.append("")
+            continue
+        linha_atual = ""
+        for palavra in palavras:
+            if len(linha_atual) + len(palavra) + 1 <= largura_max:
+                linha_atual = f"{linha_atual} {palavra}".strip()
+            else:
+                linhas_finais.append(linha_atual)
+                linha_atual = palavra
+        linhas_finais.append(linha_atual)
+    return "\n".join(linhas_finais)
