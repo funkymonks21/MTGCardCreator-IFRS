@@ -5,12 +5,24 @@ gera cartas de *Magic: The Gathering* originais a partir de um **nome**, uma
 **cor** e um **tipo** (Criatura, Instantânea, Feitiço, Artefato,
 Encantamento ou Terreno). O tipo pode ser escolhido pelo usuário, inferido
 a partir do nome ou sorteado. O pipeline é organizado em etapas: primeiro o
-tipo é decidido, depois as habilidades são geradas por uma cadeia de Markov
-(bigramas/trigramas) treinada separadamente por **tipo e cor** sobre o
-`oracle_text` real das cartas da Scryfall, e por fim custo de mana e
-poder/resistência são previstos por regressão. O peso ajustável (`peso_cor`)
-controla o quanto o vocabulário típico da cor domina a geração (perto de 1
-= fiel à cor, perto de 0 = mais caótico/genérico).
+tipo e os **subtipos** são decididos, depois as habilidades são geradas por
+uma cadeia de Markov (bigramas/trigramas) treinada separadamente por
+**tipo e cor** sobre o `oracle_text` real das cartas da Scryfall, e por fim
+custo de mana e poder/resistência são previstos por regressão. O peso
+ajustável (`peso_cor`) controla o quanto o vocabulário típico da cor domina
+a geração (perto de 1 = fiel à cor, perto de 0 = mais caótico/genérico).
+
+Os subtipos também vêm dos dados: as quantidades e os nomes são estimados
+do corpus, condicionados pelo tipo e pela cor. Criaturas recebem 1–3
+subtipos de criatura, artefatos 0–1 subtipo de artefato, terrenos 0–2
+subtipos de terreno, encantamentos 0–2, e instantâneas/feitiços 0–1.
+Auras sempre ganham uma linha `Enchant ...`, Equipamentos sempre ganham
+`Equip ...`, e terrenos com tipo básico (Plains, Island, Swamp, Mountain,
+Forest) ganham a habilidade de mana correspondente. Os subtipos ficam em
+inglês, como no `type_line` original da Scryfall, para manter a coerência
+com o texto Oracle gerado (ex.: `Creature — Human Warrior`). Assim como no
+texto, as distribuições de subtipos são misturadas com um modelo global
+pelo mesmo `peso_cor`.
 
 Instants e sorceries não têm habilidades ativadas nem poder/resistência;
 artefatos, encantamentos e terrenos não-criatura também não têm P/T, e
@@ -43,7 +55,9 @@ versionados em `models/`.
 > cadeia de Markov por tipo e cor (`src/pipeline/texto_markov.py`),
 > criação de cartas de 6 tipos (criatura, instantânea, feitiço, artefato,
 > encantamento, terreno), inferência do tipo pelo nome
-> (`src/pipeline/tipo_por_nome.py`) e geração de custo de mana +
+> (`src/pipeline/tipo_por_nome.py`), subtipos data-driven
+> (`src/pipeline/subtipos.py`), regras de Aura/Equipamento/Terreno
+> (`src/pipeline/regras_tipo.py`) e geração de custo de mana +
 > poder/resistência via regressão scikit-learn (`src/pipeline/estrutura.py`)
 > já funcionando, com peso da cor ajustável. A imagem final ainda é um
 > placeholder (Pillow). As próximas etapas (classificador de cor em PyTorch
@@ -71,18 +85,22 @@ MTGCardCreator-IFRS/
 │   └── processed/        # cards.csv / cards.parquet prontos para uso (gitignored)
 ├── models/
 │   ├── modelo_markov.pkl          # cadeia de Markov por tipo e cor, já treinada (versionado no git)
-│   └── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
+│   ├── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
+│   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip (versionado no git)
 ├── notebooks/
 │   └── demo.ipynb              # interface do projeto: roda no Colab, chama o pipeline
 ├── src/
 │   ├── data/
 │   │   └── fetch_scryfall_data.py      # obtenção dos dados brutos
 │   └── pipeline/
-│       ├── generator.py                # ponto de entrada (tipo -> habilidades -> custo/P/T)
+│       ├── generator.py                # ponto de entrada (tipo -> subtipos -> habilidades -> regras -> custo/P/T)
 │       ├── tipos.py                    # tipos suportados e regras (P/T, habilidades ativadas, terrenos)
 │       ├── tipo_por_nome.py            # inferência do tipo pelo nome (NLTK: POS tagging + WordNet)
 │       ├── texto_markov.py             # geração de texto via cadeia de Markov por tipo e cor
 │       ├── treinar_modelo_markov.py    # script de treino -> gera models/modelo_markov.pkl
+│       ├── subtipos.py                 # modelo estatístico de subtipos (quantidade, nomes, co-ocorrência)
+│       ├── treinar_modelos_subtipos.py # script de treino -> gera models/modelos_subtipos.pkl
+│       ├── regras_tipo.py              # Enchant (Aura), Equip (Equipamento) e mana de terrenos
 │       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
 │       ├── treinar_modelos_estruturais.py  # script de treino -> models/modelos_estruturais.pkl
 │       ├── mecanicas.py                # [não usado na geração] inferência de mecânica, usado só como semente opcional
@@ -172,6 +190,7 @@ print(df[["name", "mana_cost", "colors", "oracle_text"]].head())
 
 ```bash
 python src/pipeline/treinar_modelo_markov.py
+python src/pipeline/treinar_modelos_subtipos.py
 python src/pipeline/treinar_modelos_estruturais.py
 ```
 
@@ -181,9 +200,19 @@ por cor, sobre o `oracle_text` de `data/processed/cards.parquet`, e salva o
 resultado em `models/modelo_markov.pkl` (um `ModeloTextoPorTipo`, que agrupa
 os modelos de cada tipo). Terrenos são incolores: para eles o treino usa
 `color_identity` no lugar de `colors` (um "Forest" tem identidade G), e o
-modelo global inclui também os terrenos incolores de utilidade. O segundo
-treina as duas regressões scikit-learn (custo de mana -- com o tipo como
-feature -- e poder/resistência -- só criaturas; ver
+modelo global inclui também os terrenos incolores de utilidade.
+
+O segundo estima as distribuições de subtipos diretamente do corpus
+(`src/pipeline/subtipos.py`): quantidade por tipo (com os limites do
+projeto), frequência de cada subtipo por tipo e cor, co-ocorrência entre
+subtipos (para combos como "Human Warrior"), alvos de `Enchant ...` e
+custos de `Equip ...`. O resultado vai para
+`models/modelos_subtipos.pkl`. Artefatos e criaturas têm pools separados:
+um `Artifact Creature` usa subtipos de criatura, e o pool de artefato
+remove qualquer nome que também seja tipo de criatura (ex.: `Wizard`).
+
+O terceiro treina as duas regressões scikit-learn (custo de mana -- com o
+tipo como feature -- e poder/resistência -- só criaturas; ver
 `src/pipeline/estrutura.py`), imprime métricas de MAE/R² no holdout e salva
 `models/modelos_estruturais.pkl`. Terrenos ficam de fora do modelo de custo
 (não têm `mana_cost`) e não recebem P/T.
@@ -193,8 +222,8 @@ pasta `models/` não está no `.gitignore`) — são eles que o Colab carrega,
 sem precisar rodar os passos 4-6 de novo.
 
 ```bash
-git add models/modelo_markov.pkl models/modelos_estruturais.pkl
-git commit -m "Treina modelos de texto (Markov) e estruturais (custo/P-T)"
+git add models/modelo_markov.pkl models/modelos_subtipos.pkl models/modelos_estruturais.pkl
+git commit -m "Treina modelos de texto (Markov), subtipos e estruturais (custo/P-T)"
 git push
 ```
 
@@ -211,6 +240,8 @@ from pipeline import gerar_carta
 # certeza (empate ou nome sem pista), o tipo é sorteado.
 carta = gerar_carta("Murder", "Preto", peso_cor=0.7)  # automático
 print("tipo:", carta.tipo)
+print("linha de tipo:", carta.tipo_linha)  # ex.: "Creature — Human Warrior"
+print("subtipos:", carta.subtipos)
 print("como o tipo foi decidido:", carta.tipo_origem, "-", carta.tipo_motivo)
 print("custo de mana:", carta.custo_mana or "(nenhum -- terreno)")
 if carta.poder is not None:
@@ -242,6 +273,11 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
       encantamento, terreno) com texto condicionado ao tipo;
       instants/sorceries sem habilidades ativadas e sem P/T; terrenos sem
       custo nem P/T — `src/pipeline/tipos.py`
+- [x] Subtipos data-driven (criatura 1–3, artefato 0–1, terreno 0–2,
+      encantamento 0–2, mágica 0–1), com pools separados para criaturas e
+      artefatos e coerência de cor nos terrenos — `src/pipeline/subtipos.py`
+- [x] Regras de Aura (`Enchant ...`), Equipamento (`Equip ...`) e
+      habilidade de mana de terrenos com tipo básico — `src/pipeline/regras_tipo.py`
 - [x] Inferência do tipo pelo nome (POS tagging + WordNet) com fallback
       para sorteio em caso de empate/sem pista — `src/pipeline/tipo_por_nome.py`
 - [x] Regressão do custo de mana (com tipo como feature) e de

@@ -15,9 +15,14 @@ color pie. O pipeline é organizado em etapas explícitas:
     1. decide o TIPO da carta (Criatura, Instantânea, Feitiço, Artefato,
        Encantamento ou Terreno) -- escolhido pelo usuário, inferido a
        partir do nome (ver pipeline.tipo_por_nome) ou sorteado;
-    2. gera as HABILIDADES com o modelo de texto treinado só naquele tipo
+    2. sorteia os SUBTIPOS do tipo (Criatura 1-3, Artefato 0-1, Terreno
+       0-2 etc.) com probabilidades estimadas do corpus, por tipo e cor
+       (ver pipeline.subtipos);
+    3. gera as HABILIDADES com o modelo de texto treinado só naquele tipo
        (instants/sorceries não geram habilidades ativadas);
-    3. prevê CUSTO DE MANA (regressão com o tipo como feature) e, apenas
+    4. aplica as regras de Aura/Equipamento/Terreno (Enchant, Equip,
+       habilidade de mana) -- ver pipeline.regras_tipo;
+    5. prevê CUSTO DE MANA (regressão com o tipo como feature) e, apenas
        para criaturas, PODER/RESISTÊNCIA. Terrenos não têm custo nem P/T.
 
 A primeira versão deste projeto usava inferência de mecânica + regras
@@ -29,6 +34,7 @@ saia uma combinação fora do color pie oficial. Essa troca é documentada
 no relatório do projeto.
 """
 
+import random
 import unicodedata
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -36,6 +42,8 @@ from typing import List, Optional
 from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
+from .regras_tipo import ajustar_subtipos_por_texto, aplicar_regras_texto
+from .subtipos import ModeloSubtipos
 from .texto_markov import carregar_modelo
 from .tipo_por_nome import inferir_tipo_por_nome
 from .tipos import TIPOS_COM_PODER_RESISTENCIA, TIPOS_DISPLAY, TIPOS_VALIDOS
@@ -85,6 +93,10 @@ _modelo_cache = None
 # pipeline.estrutura).
 _modelos_estruturais_cache: Optional[ModeloEstrutural] = None
 
+# Modelo de subtipos + estatísticas das regras de Aura/Equipamento/Terreno
+# (ver pipeline.subtipos e pipeline.regras_tipo).
+_modelos_subtipos_cache: Optional[ModeloSubtipos] = None
+
 
 def _obter_modelo():
     global _modelo_cache
@@ -100,6 +112,13 @@ def _obter_modelos_estruturais() -> ModeloEstrutural:
     return _modelos_estruturais_cache
 
 
+def _obter_modelos_subtipos() -> ModeloSubtipos:
+    global _modelos_subtipos_cache
+    if _modelos_subtipos_cache is None:
+        _modelos_subtipos_cache = ModeloSubtipos.carregar()
+    return _modelos_subtipos_cache
+
+
 @dataclass
 class Carta:
     """Representa o resultado final de uma geração: todos os campos que a
@@ -110,6 +129,11 @@ class Carta:
     tipo: str
     texto_regras: str
     imagem_final: Image.Image
+    # Linha de tipo completa no formato Oracle, ex.: "Creature — Human
+    # Warrior" / "Artifact — Equipment" / "Land — Forest Island".
+    tipo_linha: str = ""
+    # Subtipos sorteados pelo modelo estatístico (ver pipeline.subtipos).
+    subtipos: List[str] = field(default_factory=list)
     # Poder e resistência da criatura (previstos pela regressão do
     # pipeline.estrutura). Nulos se a carta não for criatura.
     poder: Optional[int] = None
@@ -177,18 +201,26 @@ def gerar_carta(
         1. [FEITO] decide o TIPO (Criatura, Instantânea, Feitiço, Artefato,
            Encantamento ou Terreno) -- escolhido, inferido pelo nome ou
            sorteado;
-        2. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
+        2. [FEITO] sorteia os SUBTIPOS do tipo (ex.: Human Warrior,
+           Equipment, Forest Island) com probabilidades estimadas do
+           corpus por tipo e cor -- ver pipeline.subtipos. Criaturas têm
+           1-3, artefatos 0-1, terrenos 0-2 etc.;
+        3. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
            naquele tipo (bigramas/trigramas por tipo e cor) -- ver
            pipeline.texto_markov. Instants/sorceries não têm habilidades
            ativadas;
-        3. [FEITO] texto gerado -> regressão (scikit-learn, treinada nas
+        4. [FEITO] aplica as regras de texto do tipo/subtipo: Aura sempre
+           tem "Enchant ...", Equipamento sempre tem "Equip ...", terreno
+           com tipo básico ganha a habilidade de mana correspondente --
+           ver pipeline.regras_tipo;
+        5. [FEITO] texto final -> regressão (scikit-learn, treinada nas
            cartas reais da Scryfall) -> custo de mana; poder/resistência
            apenas para criaturas; terrenos não têm custo nem P/T -- ver
            pipeline.estrutura;
-        4. texto gerado -> classificador PyTorch -> mede o quão "on-color"
+        6. texto gerado -> classificador PyTorch -> mede o quão "on-color"
            o texto gerado ficou (métrica/diagnóstico, não filtro);
-        5. nome + tipo + texto -> prompt -> API de imagem -> arte;
-        6. arte + textos -> composição final (OpenCV) -> imagem da carta.
+        7. nome + tipo + texto -> prompt -> API de imagem -> arte;
+        8. arte + textos -> composição final (OpenCV) -> imagem da carta.
     """
     if cor not in COLOR_PIE:
         raise ValueError(f"Cor inválida: {cor!r}. Use uma de {list(COLOR_PIE)}.")
@@ -222,14 +254,36 @@ def gerar_carta(
         tipo_motivo = "tipo escolhido manualmente"
 
     tipo_display = TIPOS_DISPLAY[tipo_chave]
+    rng = random.Random()
 
-    # Etapa 2: habilidades condicionadas ao tipo escolhido.
+    # Etapa 2: subtipos condicionados ao tipo e à cor. As probabilidades
+    # vêm do corpus (ver pipeline.subtipos).
+    modelo_subtipos = _obter_modelos_subtipos()
+    subtipos = modelo_subtipos.sortear(tipo_chave, cor_abrev, peso_cor, rng)
+
+    # Etapa 3: habilidades condicionadas ao tipo escolhido.
     resultado = modelo.gerar_texto(
         cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome
     )
     texto_regras = resultado["texto"]
 
-    # Etapa 3: custo de mana (o tipo entra como feature) e, só para
+    # Etapa 4: regras de texto do tipo/subtipo. Se o texto já tiver
+    # "Enchant ..."/"Equip ...", o subtipo correspondente é garantido;
+    # depois o lint adiciona a linha que faltar (Aura/Equipamento) e a
+    # habilidade de mana de terrenos.
+    subtipos = ajustar_subtipos_por_texto(tipo_chave, subtipos, texto_regras)
+    texto_regras = aplicar_regras_texto(
+        texto_regras,
+        tipo_chave,
+        subtipos,
+        cor_abrev,
+        peso_cor,
+        modelo_subtipos,
+        rng,
+    )
+    tipo_linha = modelo_subtipos.montar_tipo_linha(tipo_chave, subtipos)
+
+    # Etapa 5: custo de mana (o tipo entra como feature) e, só para
     # criaturas, poder/resistência (ver pipeline.tipos).
     modelos_estruturais = _obter_modelos_estruturais()
     custo_mana, cmc_previsto = modelos_estruturais.prever_custo_mana(
@@ -243,7 +297,7 @@ def gerar_carta(
         )
 
     imagem = _imagem_placeholder(
-        nome, cor, tipo_display, custo_mana, texto_regras, poder, resistencia
+        nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
     )
 
     return Carta(
@@ -253,6 +307,8 @@ def gerar_carta(
         tipo=tipo_display,
         texto_regras=texto_regras,
         imagem_final=imagem,
+        tipo_linha=tipo_linha,
+        subtipos=subtipos,
         poder=poder,
         resistencia=resistencia,
         peso_cor=peso_cor,
@@ -266,14 +322,14 @@ def gerar_carta(
 def _imagem_placeholder(
     nome: str,
     cor: str,
-    tipo: str,
+    tipo_linha: str,
     custo_mana: str,
     texto_regras: str,
     poder: Optional[int] = None,
     resistencia: Optional[int] = None,
 ) -> Image.Image:
     """Será substituído pela composição final com OpenCV, usando a arte
-    gerada pela API de imagem (etapas 5-6 do TODO acima). Por enquanto,
+    gerada pela API de imagem (etapas 7-8 do TODO acima). Por enquanto,
     desenha um retângulo simples só para a interface ter uma imagem real
     para exibir."""
     largura, altura = 480, 680
@@ -285,12 +341,12 @@ def _imagem_placeholder(
     # composição de verdade via OpenCV + fonte própria na etapa final),
     # removemos os acentos apenas para o texto desenhado na imagem.
     nome_img = _remover_acentos(nome)
-    tipo_img = _remover_acentos(tipo)
+    tipo_img = _remover_acentos(tipo_linha)
     texto_img = _remover_acentos(texto_regras)
 
     draw.rectangle([10, 10, largura - 10, altura - 10], outline="black", width=4)
     draw.text((30, 25), nome_img, fill="black")
-    # Linha de tipo logo abaixo do nome (ex: "Criatura" / "Instantânea").
+    # Linha de tipo logo abaixo do nome (ex: "Creature — Human Warrior").
     draw.text((30, 45), tipo_img, fill="black")
     # Custo de mana alinhado à direita (o custo pode ser longo tipo
     # "{2}{W}{W}", herdo do formato do Oracle). Terrenos não têm custo --
