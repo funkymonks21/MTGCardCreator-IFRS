@@ -83,16 +83,20 @@ Modelos por tipo de carta
 =========================
 O modelo antigo só olhava a cor, então o texto de uma criatura podia
 "vazar" para um instantâneo (e vice-versa). Como o projeto agora gera
-Criatura, Instantânea, Feitiço, Artefato e Encantamento, o treino é feito
-por TIPO: um ModeloMarkovPorCor separado para cada tipo de carta, usando
-só as cartas daquele tipo (ver pipeline/tipos.py). O artefato salvo é um
-ModeloTextoPorTipo -- um wrapper que escolhe o modelo do tipo pedido (ou
-sorteia um tipo, ponderado pela frequência real no corpus).
+Criatura, Instantânea, Feitiço, Artefato, Encantamento e Terreno, o treino
+é feito por TIPO: um ModeloMarkovPorCor separado para cada tipo de carta,
+usando só as cartas daquele tipo (ver pipeline/tipos.py). O artefato salvo
+é um ModeloTextoPorTipo -- um wrapper que escolhe o modelo do tipo pedido
+(ou sorteia um tipo, ponderado pela frequência real no corpus).
+
+Terrenos são incolores, então o modelo de terreno usa `color_identity`
+(que diz quais cores de mana ele produz) no lugar de `colors`; o modelo
+global de terreno inclui também os terrenos incolores de utilidade.
 
 Consequência prática: instants/sorceries aprendem textos de mágica
-(efeitos que não viram permanentes) e artefatos/encantamentos aprendem
-textos de permanente -- incluindo habilidades ativadas. Instants e
-sorceries não têm habilidades ativadas ("custo + ':' + efeito"), então
+(efeitos que não viram permanentes) e artefatos/encantamentos/terrenos
+aprendem textos de permanente -- incluindo habilidades ativadas. Instants
+e sorceries não têm habilidades ativadas ("custo + ':' + efeito"), então
 essas linhas são filtradas no treino e evitadas na geração.
 
 Por que misturar com um modelo global (e não só usar o da cor)
@@ -116,7 +120,12 @@ import nltk
 import pandas as pd
 
 from .mecanicas import DICIONARIO_MECANICAS, inferir_mecanica
-from .tipos import TIPOS_SEM_HABILIDADE_ATIVADA, TIPOS_VALIDOS, tipo_da_carta
+from .tipos import (
+    TIPOS_SEM_HABILIDADE_ATIVADA,
+    TIPOS_USAM_COLOR_IDENTITY,
+    TIPOS_VALIDOS,
+    tipo_da_carta,
+)
 
 TOKEN_INICIO = "<INICIO>"
 TOKEN_FIM = "<FIM>"
@@ -395,7 +404,12 @@ def _capitalizar(texto: str) -> str:
     Os símbolos {...} são maiúsculos e não são afetados."""
     if not texto:
         return texto
-    texto = re.sub(r"[a-z]", lambda m: m.group(0).upper(), texto, count=1)
+    # Só a PRIMEIRA posição: o texto pode começar com o nome da carta já
+    # capitalizado (ex: "Teste de Terreno enters tapped."). Procurar a
+    # primeira letra minúscula em qualquer lugar transformaria "Teste" em
+    # "TEste".
+    if texto[0].islower():
+        texto = texto[0].upper() + texto[1:]
     m = re.search(r":[^a-zA-Z]*([a-z])", texto)
     if m:
         texto = texto[: m.start(1)] + m.group(1).upper() + texto[m.end(1):]
@@ -465,13 +479,26 @@ class ModeloMarkovPorCor:
     (todas as cores), usados em conjunto na geração.
 
     Cada instância é treinada com as cartas de UM tipo (creature, instant,
-    sorcery, artifact, enchantment -- ver pipeline/tipos.py). O parâmetro
-    `tipo` também define as regras de estrutura: instants/sorceries não
-    podem ter habilidades ativadas (custo + ":"), então essas linhas são
-    ignoradas no treino e evitadas na geração."""
+    sorcery, artifact, enchantment, land -- ver pipeline/tipos.py). O
+    parâmetro `tipo` também define as regras de estrutura: instants/
+    sorceries não podem ter habilidades ativadas (custo + ":"), então
+    essas linhas são ignoradas no treino e evitadas na geração.
 
-    def __init__(self, df_cartas: pd.DataFrame, tipo: str = "creature"):
+    Para terrenos, `usar_color_identity=True` faz o treino usar
+    `color_identity` no lugar de `colors`: terrenos são incolores, mas a
+    identidade de cor diz quais mana eles produzem (um "Forest" tem
+    identidade G), então o modelo de terreno aprende o vocabulário certo
+    para cada cor. O modelo global é sempre treinado com TODAS as cartas do
+    tipo, uma vez cada (inclusive terrenos incolores)."""
+
+    def __init__(
+        self,
+        df_cartas: pd.DataFrame,
+        tipo: str = "creature",
+        usar_color_identity: bool = False,
+    ):
         self.tipo = tipo
+        self.usar_color_identity = usar_color_identity
         self.permitir_habilidade_ativada = tipo not in TIPOS_SEM_HABILIDADE_ATIVADA
         self.bigramas_por_cor: Dict[str, Dict[str, Counter]] = {}
         self.trigramas_por_cor: Dict[str, Dict[Tuple[str, str], Counter]] = {}
@@ -495,9 +522,72 @@ class ModeloMarkovPorCor:
 
     # -- treino -----------------------------------------------------
 
+    def _processar_cartas(
+        self,
+        cartas: pd.DataFrame,
+        bigramas: Dict[str, Counter],
+        trigramas: Dict[Tuple[str, str], Counter],
+        unigramas: Counter,
+        keywords: Counter,
+        contagem_keywords: Counter,
+    ) -> None:
+        """Acumula os contadores de texto/keywords de `cartas` nos
+        contadores passados. Usado tanto para o modelo de cada cor quanto
+        para o modelo global."""
+        for _, carta in cartas.iterrows():
+            nome_carta = carta.get("name", "") or ""
+            linhas = _dividir_em_linhas(carta.get("oracle_text", ""))
+
+            total_keywords_desta_carta = 0
+
+            for linha in linhas:
+                # Instants/sorceries não têm habilidades ativadas
+                # ("custo: efeito"). O corpus tem pouquíssimas
+                # exceções (ativadas do cemitério/mão), que excluímos
+                # do treino para o modelo não aprender esse formato.
+                if (
+                    not self.permitir_habilidade_ativada
+                    and _PADRAO_SIMBOLO.match(linha)
+                ):
+                    continue
+
+                kws_da_linha = _linha_e_so_keywords(linha)
+
+                if kws_da_linha is not None:
+                    # Linha é só keywords -- não entra na cadeia de
+                    # texto, só nos contadores de keyword.
+                    for kw in kws_da_linha:
+                        keywords[kw] += 1
+                    total_keywords_desta_carta += len(kws_da_linha)
+                    continue
+
+                # Linha de texto de habilidade "normal": normaliza
+                # autorreferência e treina a cadeia NESTA linha
+                # isoladamente (não encadeia com outras linhas/outras
+                # habilidades da mesma carta, que são conceitualmente
+                # independentes).
+                linha_normalizada = _normalizar_autorreferencia(linha, nome_carta)
+                tokens = [TOKEN_INICIO] + _tokenizar(linha_normalizada) + [TOKEN_FIM]
+                if len(tokens) <= 2:
+                    continue  # linha vazia depois de tokenizar
+
+                unigramas.update(tokens)
+                for w1, w2 in nltk.bigrams(tokens):
+                    bigramas[w1][w2] += 1
+                for w1, w2, w3 in nltk.trigrams(tokens):
+                    trigramas[(w1, w2)][w3] += 1
+
+            contagem_keywords[total_keywords_desta_carta] += 1
+
     def _treinar(self, df_cartas: pd.DataFrame):
+        # Terrenos são incolores; para eles a cor vem da identidade de cor
+        # (ver docstring da classe).
+        coluna_cor = "color_identity" if self.usar_color_identity else "colors"
+
         for cor in CORES_VALIDAS:
-            cartas_da_cor = df_cartas[df_cartas["colors"].apply(lambda cs: _cor_em(cs, cor))]
+            cartas_da_cor = df_cartas[
+                df_cartas[coluna_cor].apply(lambda cs: _cor_em(cs, cor))
+            ]
 
             bigramas: Dict[str, Counter] = defaultdict(Counter)
             trigramas: Dict[Tuple[str, str], Counter] = defaultdict(Counter)
@@ -505,62 +595,29 @@ class ModeloMarkovPorCor:
             keywords: Counter = Counter()
             contagem_keywords: Counter = Counter()
 
-            for _, carta in cartas_da_cor.iterrows():
-                nome_carta = carta.get("name", "") or ""
-                linhas = _dividir_em_linhas(carta.get("oracle_text", ""))
-
-                total_keywords_desta_carta = 0
-
-                for linha in linhas:
-                    # Instants/sorceries não têm habilidades ativadas
-                    # ("custo: efeito"). O corpus tem pouquíssimas
-                    # exceções (ativadas do cemitério/mão), que excluímos
-                    # do treino para o modelo não aprender esse formato.
-                    if (
-                        not self.permitir_habilidade_ativada
-                        and _PADRAO_SIMBOLO.match(linha)
-                    ):
-                        continue
-
-                    kws_da_linha = _linha_e_so_keywords(linha)
-
-                    if kws_da_linha is not None:
-                        # Linha é só keywords -- não entra na cadeia de
-                        # texto, só nos contadores de keyword.
-                        for kw in kws_da_linha:
-                            keywords[kw] += 1
-                            self.keywords_global[kw] += 1
-                        total_keywords_desta_carta += len(kws_da_linha)
-                        continue
-
-                    # Linha de texto de habilidade "normal": normaliza
-                    # autorreferência e treina a cadeia NESTA linha
-                    # isoladamente (não encadeia com outras linhas/outras
-                    # habilidades da mesma carta, que são conceitualmente
-                    # independentes).
-                    linha_normalizada = _normalizar_autorreferencia(linha, nome_carta)
-                    tokens = [TOKEN_INICIO] + _tokenizar(linha_normalizada) + [TOKEN_FIM]
-                    if len(tokens) <= 2:
-                        continue  # linha vazia depois de tokenizar
-
-                    unigramas.update(tokens)
-                    for w1, w2 in nltk.bigrams(tokens):
-                        bigramas[w1][w2] += 1
-                        self.bigramas_global[w1][w2] += 1
-                    for w1, w2, w3 in nltk.trigrams(tokens):
-                        trigramas[(w1, w2)][w3] += 1
-                        self.trigramas_global[(w1, w2)][w3] += 1
-
-                contagem_keywords[total_keywords_desta_carta] += 1
+            self._processar_cartas(
+                cartas_da_cor, bigramas, trigramas, unigramas, keywords, contagem_keywords
+            )
 
             self.bigramas_por_cor[cor] = bigramas
             self.trigramas_por_cor[cor] = trigramas
             self.unigramas_por_cor[cor] = unigramas
-            self.unigramas_global.update(unigramas)
 
             self.keywords_por_cor[cor] = keywords
             self.contagem_keywords_por_cor[cor] = contagem_keywords
-            self.contagem_keywords_global.update(contagem_keywords)
+
+        # Modelo global: TODAS as cartas do tipo, uma vez cada. Fazer isso
+        # separadamente (em vez de somar os modelos por cor) evita duplicar
+        # cartas multicolor e -- crucialmente -- inclui cartas incolores,
+        # como os terrenos de utilidade que não têm identidade de cor.
+        self._processar_cartas(
+            df_cartas,
+            self.bigramas_global,
+            self.trigramas_global,
+            self.unigramas_global,
+            self.keywords_global,
+            self.contagem_keywords_global,
+        )
 
     # -- geração: texto de habilidade ---------------------------------
 
@@ -710,12 +767,12 @@ class ModeloMarkovPorCor:
 
 class ModeloTextoPorTipo:
     """Guarda um `ModeloMarkovPorCor` por tipo de carta (creature, instant,
-    sorcery, artifact, enchantment -- ver pipeline/tipos.py).
+    sorcery, artifact, enchantment, land -- ver pipeline/tipos.py).
 
     O pipeline decide o tipo ANTES de gerar o texto: como cada modelo é
     treinado só com cartas daquele tipo, as habilidades geradas combinam
-    com ele (um instantâneo gera efeitos de mágica, um artefato gera texto
-    de permanente com habilidades ativadas etc.)."""
+    com ele (um instantâneo gera efeitos de mágica, um terreno gera texto
+    de terreno com habilidades de mana etc.)."""
 
     def __init__(self, df_cartas: pd.DataFrame, tipos: Optional[List[str]] = None):
         tipos = list(tipos) if tipos is not None else list(TIPOS_VALIDOS)
@@ -729,7 +786,11 @@ class ModeloTextoPorTipo:
             if cartas_do_tipo.empty:
                 continue
             self.contagem_por_tipo[tipo] = len(cartas_do_tipo)
-            self.modelos[tipo] = ModeloMarkovPorCor(cartas_do_tipo, tipo=tipo)
+            self.modelos[tipo] = ModeloMarkovPorCor(
+                cartas_do_tipo,
+                tipo=tipo,
+                usar_color_identity=tipo in TIPOS_USAM_COLOR_IDENTITY,
+            )
 
     def sortear_tipo(self, rng: Optional[random.Random] = None) -> str:
         """Sorteia um tipo suportado, ponderado pela frequência real no

@@ -3,9 +3,11 @@ from .generator import (
     COLOR_PIE,
     PESO_COR_PADRAO,
     TIPO_ALEATORIO,
+    TIPO_AUTOMATICO,
     TIPOS_DISPONIVEIS,
     gerar_carta,
 )
+from .tipo_por_nome import InferenciaTipo, inferir_tipo_por_nome
 
 __all__ = [
     "gerar_carta",
@@ -13,5 +15,8 @@ __all__ = [
     "COLOR_PIE",
     "PESO_COR_PADRAO",
     "TIPO_ALEATORIO",
+    "TIPO_AUTOMATICO",
     "TIPOS_DISPONIVEIS",
+    "InferenciaTipo",
+    "inferir_tipo_por_nome",
 ]

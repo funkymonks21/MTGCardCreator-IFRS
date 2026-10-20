@@ -2,18 +2,28 @@
 
 Projeto acadêmico (disciplina de IA e Bibliotecas de Dados para Python) que
 gera cartas de *Magic: The Gathering* originais a partir de um **nome**, uma
-**cor** e um **tipo** (Criatura, Instantânea, Feitiço, Artefato ou
-Encantamento) escolhidos pelo usuário. O pipeline é organizado em etapas:
-primeiro o tipo é decidido, depois as habilidades são geradas por uma
-cadeia de Markov (bigramas/trigramas) treinada separadamente por **tipo e
-cor** sobre o `oracle_text` real das cartas da Scryfall, e por fim custo de
-mana e poder/resistência são previstos por regressão. O peso ajustável
-(`peso_cor`) controla o quanto o vocabulário típico da cor domina a geração
-(perto de 1 = fiel à cor, perto de 0 = mais caótico/genérico).
+**cor** e um **tipo** (Criatura, Instantânea, Feitiço, Artefato,
+Encantamento ou Terreno). O tipo pode ser escolhido pelo usuário, inferido
+a partir do nome ou sorteado. O pipeline é organizado em etapas: primeiro o
+tipo é decidido, depois as habilidades são geradas por uma cadeia de Markov
+(bigramas/trigramas) treinada separadamente por **tipo e cor** sobre o
+`oracle_text` real das cartas da Scryfall, e por fim custo de mana e
+poder/resistência são previstos por regressão. O peso ajustável (`peso_cor`)
+controla o quanto o vocabulário típico da cor domina a geração (perto de 1
+= fiel à cor, perto de 0 = mais caótico/genérico).
 
 Instants e sorceries não têm habilidades ativadas nem poder/resistência;
-artefatos e encantamentos não-criatura também não têm P/T. Só criaturas
-recebem poder/resistência.
+artefatos, encantamentos e terrenos não-criatura também não têm P/T, e
+terrenos não têm custo de mana. Só criaturas recebem poder/resistência.
+
+**Inferência do tipo pelo nome** (`src/pipeline/tipo_por_nome.py`): com a
+opção `Automático (pelo nome)`, o sistema usa POS tagging do NLTK + WordNet
+(com listas curadas em inglês e português) para achar pistas no nome:
+verbos/ações puxam instantânea/feitiço, lugares puxam terreno,
+profissões/nomes próprios puxam criatura, objetos puxam artefato e conceitos
+abstratos puxam encantamento. Em caso de empate ou de nenhuma pista, o tipo
+é sorteado. É uma heurística, não um classificador treinado: nomes ambíguos
+podem cair num tipo diferente do que a carta real de Magic teria.
 
 > **Decisão de design:** não há filtro de color pie na geração atual —
 > isso é proposital (ver `src/pipeline/generator.py`). Uma primeira versão
@@ -31,14 +41,15 @@ versionados em `models/`.
 
 > Status atual: obtenção dos dados (Scryfall), geração de texto via
 > cadeia de Markov por tipo e cor (`src/pipeline/texto_markov.py`),
-> criação de cartas de 5 tipos (criatura, instantânea, feitiço, artefato,
-> encantamento) e geração de custo de mana + poder/resistência via
-> regressão scikit-learn (`src/pipeline/estrutura.py`) já funcionando, com
-> peso da cor ajustável. A imagem final ainda é um placeholder (Pillow).
-> As próximas etapas (classificador de cor em PyTorch como métrica de
-> diagnóstico, grafo de transições com NetworkX/Matplotlib, arte via API de
-> imagem e composição final em OpenCV) vão preencher o que falta em
-> `src/pipeline/`, sem alterar a interface do notebook.
+> criação de cartas de 6 tipos (criatura, instantânea, feitiço, artefato,
+> encantamento, terreno), inferência do tipo pelo nome
+> (`src/pipeline/tipo_por_nome.py`) e geração de custo de mana +
+> poder/resistência via regressão scikit-learn (`src/pipeline/estrutura.py`)
+> já funcionando, com peso da cor ajustável. A imagem final ainda é um
+> placeholder (Pillow). As próximas etapas (classificador de cor em PyTorch
+> como métrica de diagnóstico, grafo de transições com NetworkX/Matplotlib,
+> arte via API de imagem e composição final em OpenCV) vão preencher o que
+> falta em `src/pipeline/`, sem alterar a interface do notebook.
 
 ## Stack
 
@@ -68,7 +79,8 @@ MTGCardCreator-IFRS/
 │   │   └── fetch_scryfall_data.py      # obtenção dos dados brutos
 │   └── pipeline/
 │       ├── generator.py                # ponto de entrada (tipo -> habilidades -> custo/P/T)
-│       ├── tipos.py                    # tipos suportados e regras (P/T, habilidades ativadas)
+│       ├── tipos.py                    # tipos suportados e regras (P/T, habilidades ativadas, terrenos)
+│       ├── tipo_por_nome.py            # inferência do tipo pelo nome (NLTK: POS tagging + WordNet)
 │       ├── texto_markov.py             # geração de texto via cadeia de Markov por tipo e cor
 │       ├── treinar_modelo_markov.py    # script de treino -> gera models/modelo_markov.pkl
 │       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
@@ -164,13 +176,17 @@ python src/pipeline/treinar_modelos_estruturais.py
 ```
 
 O primeiro treina um modelo de Markov (bigramas/trigramas) para CADA tipo
-de carta (criatura, instantânea, feitiço, artefato, encantamento), por cor,
-sobre o `oracle_text` de `data/processed/cards.parquet`, e salva o resultado
-em `models/modelo_markov.pkl` (um `ModeloTextoPorTipo`, que agrupa os
-modelos de cada tipo). O segundo treina as duas regressões scikit-learn
-(custo de mana -- com o tipo como feature -- e poder/resistência -- só
-criaturas; ver `src/pipeline/estrutura.py`), imprime métricas de MAE/R² no
-holdout e salva `models/modelos_estruturais.pkl`.
+de carta (criatura, instantânea, feitiço, artefato, encantamento, terreno),
+por cor, sobre o `oracle_text` de `data/processed/cards.parquet`, e salva o
+resultado em `models/modelo_markov.pkl` (um `ModeloTextoPorTipo`, que agrupa
+os modelos de cada tipo). Terrenos são incolores: para eles o treino usa
+`color_identity` no lugar de `colors` (um "Forest" tem identidade G), e o
+modelo global inclui também os terrenos incolores de utilidade. O segundo
+treina as duas regressões scikit-learn (custo de mana -- com o tipo como
+feature -- e poder/resistência -- só criaturas; ver
+`src/pipeline/estrutura.py`), imprime métricas de MAE/R² no holdout e salva
+`models/modelos_estruturais.pkl`. Terrenos ficam de fora do modelo de custo
+(não têm `mana_cost`) e não recebem P/T.
 
 **Esses arquivos precisam ser commitados** (ao contrário de `data/`, a
 pasta `models/` não está no `.gitignore`) — são eles que o Colab carrega,
@@ -190,10 +206,13 @@ sys.path.insert(0, "src")
 from pipeline import gerar_carta
 
 # tipo pode ser "Criatura", "Instantânea", "Feitiço", "Artefato",
-# "Encantamento", "Aleatório" (ou None, que sorteia)
-carta = gerar_carta("Murder", "Preto", peso_cor=0.7, tipo="Instantânea")
+# "Encantamento", "Terreno", "Aleatório" ou "Automático (pelo nome)".
+# None/vazio também significa automático; se a inferência não tiver
+# certeza (empate ou nome sem pista), o tipo é sorteado.
+carta = gerar_carta("Murder", "Preto", peso_cor=0.7)  # automático
 print("tipo:", carta.tipo)
-print("custo de mana:", carta.custo_mana)
+print("como o tipo foi decidido:", carta.tipo_origem, "-", carta.tipo_motivo)
+print("custo de mana:", carta.custo_mana or "(nenhum -- terreno)")
 if carta.poder is not None:
     print("poder/resistência:", carta.poder, "/", carta.resistencia)
 print("texto:", carta.texto_regras)
@@ -218,8 +237,11 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] Geração de texto via cadeia de Markov por tipo e cor, com peso
       ajustável — `src/pipeline/texto_markov.py`
 - [x] Tipos de carta (criatura, instantânea, feitiço, artefato,
-      encantamento) com texto condicionado ao tipo; instants/sorceries sem
-      habilidades ativadas e sem P/T — `src/pipeline/tipos.py`
+      encantamento, terreno) com texto condicionado ao tipo;
+      instants/sorceries sem habilidades ativadas e sem P/T; terrenos sem
+      custo nem P/T — `src/pipeline/tipos.py`
+- [x] Inferência do tipo pelo nome (POS tagging + WordNet) com fallback
+      para sorteio em caso de empate/sem pista — `src/pipeline/tipo_por_nome.py`
 - [x] Regressão do custo de mana (com tipo como feature) e de
       poder/resistência (só criaturas) (Scikit-Learn)
       — `src/pipeline/estrutura.py`

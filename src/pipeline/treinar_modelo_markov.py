@@ -11,9 +11,10 @@ que gera data/processed/cards.parquet.
 O que o script faz:
     1. Carrega data/processed/cards.parquet
     2. Treina um ModeloMarkovPorCor para CADA tipo de carta suportado
-       (creature, instant, sorcery, artifact, enchantment), agrupados no
-       wrapper ModeloTextoPorTipo (ver pipeline/texto_markov.py e
-       pipeline/tipos.py)
+       (creature, instant, sorcery, artifact, enchantment, land), agrupados
+       no wrapper ModeloTextoPorTipo (ver pipeline/texto_markov.py e
+       pipeline/tipos.py). Terrenos usam `color_identity` no lugar de
+       `colors`, porque são incolores mas produzem mana colorida.
     3. Salva o modelo treinado em models/modelo_markov.pkl
 
 Esse artefato treinado (ao contrário de data/) É versionado no git -- é

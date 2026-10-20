@@ -27,7 +27,9 @@ Como funciona
        enchantment -- ver pipeline/tipos.py).
    O tipo entra como feature porque o custo típico depende dele: feitiços
    e instantâneas costumam ser mais baratos que criaturas do mesmo
-   "tamanho" de texto, artefatos baratos são comuns etc.
+   "tamanho" de texto, artefatos baratos são comuns etc. Terrenos não têm
+   custo de mana: ficam fora do treino (mana_cost vazio) e, na geração,
+   recebem custo vazio sem consultar o modelo.
    Na hora de gerar, o custo é remontado no formato do Oracle:
    `{generico}{W}{W}`, garantindo pelo menos um símbolo colorido quando o
    custo previsto é >= 1 (carta colorida sempre tem ao menos um pip).
@@ -39,7 +41,7 @@ Como funciona
    a criatura deve ser (o mesmo texto de uma carta barata e de uma cara
    produz corpos diferentes). Os valores previstos são arredondados e
    presos ao intervalo [0, 20]. Este modelo NÃO é usado para instants,
-   sorceries, artefatos ou encantamentos não-criatura: o `generator` só
+   sorceries, artefatos, encantamentos ou terrenos: o `generator` só
    chama `prever_poder_resistencia` quando o tipo é criatura (ver
    pipeline/tipos.py, TIPOS_COM_PODER_RESISTENCIA).
 
@@ -66,7 +68,7 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from .tipos import tipo_da_carta
+from .tipos import TIPOS_SEM_CUSTO_MANA, tipo_da_carta
 
 CORES_VALIDAS = ["W", "U", "B", "R", "G"]
 
@@ -151,6 +153,7 @@ def preparar_dados_custo(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     dados = dados[
         dados["cor"].notna()
         & dados["tipo"].notna()
+        & ~dados["tipo"].isin(TIPOS_SEM_CUSTO_MANA)
         & dados["mana_cost"].str.fullmatch(_MANA_SIMPLES)
         & dados["cmc"].notna()
     ].copy()
@@ -267,7 +270,14 @@ class ModeloEstrutural:
 
     def prever_custo_mana(self, texto: str, cor: str, tipo: str) -> Tuple[str, int]:
         """Prevê o custo de mana de uma carta da cor `cor` e do tipo `tipo`
-        a partir do seu texto. Retorna (custo_formatado, cmc_previsto)."""
+        a partir do seu texto. Retorna (custo_formatado, cmc_previsto).
+
+        Terrenos não têm custo de mana: devolve ("", 0) sem consultar o
+        modelo (eles também ficam de fora do treino, porque o `mana_cost`
+        é vazio)."""
+        if tipo in TIPOS_SEM_CUSTO_MANA:
+            return "", 0
+
         if cor not in CORES_VALIDAS:
             raise ValueError(f"Cor inválida: {cor!r}. Use uma de {CORES_VALIDAS}.")
 

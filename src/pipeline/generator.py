@@ -12,12 +12,13 @@ Decisão de design: o texto de regras é gerado por uma cadeia de Markov
 treinada por TIPO e por cor (ver pipeline.texto_markov), SEM filtro de
 color pie. O pipeline é organizado em etapas explícitas:
 
-    1. decide o TIPO da carta (Criatura, Instantânea, Feitiço, Artefato
-       ou Encantamento) -- escolhido pelo usuário ou sorteado;
+    1. decide o TIPO da carta (Criatura, Instantânea, Feitiço, Artefato,
+       Encantamento ou Terreno) -- escolhido pelo usuário, inferido a
+       partir do nome (ver pipeline.tipo_por_nome) ou sorteado;
     2. gera as HABILIDADES com o modelo de texto treinado só naquele tipo
        (instants/sorceries não geram habilidades ativadas);
     3. prevê CUSTO DE MANA (regressão com o tipo como feature) e, apenas
-       para criaturas, PODER/RESISTÊNCIA.
+       para criaturas, PODER/RESISTÊNCIA. Terrenos não têm custo nem P/T.
 
 A primeira versão deste projeto usava inferência de mecânica + regras
 rígidas de color pie (pipeline.mecanicas / pipeline.color_pie, ainda no
@@ -36,6 +37,7 @@ from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
 from .texto_markov import carregar_modelo
+from .tipo_por_nome import inferir_tipo_por_nome
 from .tipos import TIPOS_COM_PODER_RESISTENCIA, TIPOS_DISPLAY, TIPOS_VALIDOS
 
 # Mapeamento das 5 cores do Magic (WUBRG) para abreviação e uma cor de
@@ -53,12 +55,24 @@ COLOR_PIE = {
 # parâmetro que faz sentido o notebook poder sobrescrever.
 PESO_COR_PADRAO = 0.7
 
-# Opções de tipo expostas para a interface. "Aleatório" mapeia para None e
-# faz o pipeline sortear um tipo ponderado pela frequência real no corpus
-# (ver ModeloTextoPorTipo.sortear_tipo).
+# Opções de tipo expostas para a interface.
+#
+# "Automático" tenta inferir o tipo pelo nome (ver
+# pipeline.tipo_por_nome.inferir_tipo_por_nome) e, se não houver sinal
+# suficiente ou houver empate, sorteia. "Aleatório" pula a inferência e
+# sorteia direto, ponderado pela frequência real no corpus (ver
+# ModeloTextoPorTipo.sortear_tipo).
+TIPO_AUTOMATICO = "Automático (pelo nome)"
 TIPO_ALEATORIO = "Aleatório"
+
+# Sentinelas internas devolvidas por _resolver_tipo (e usadas como valores
+# de TIPOS_DISPONIVEIS para as duas opções especiais).
+_TIPO_AUTO = "__auto__"
+_TIPO_SORTEAR = "__aleatorio__"
+
 TIPOS_DISPONIVEIS = {
-    TIPO_ALEATORIO: None,
+    TIPO_AUTOMATICO: _TIPO_AUTO,
+    TIPO_ALEATORIO: _TIPO_SORTEAR,
     **{TIPOS_DISPLAY[tipo]: tipo for tipo in TIPOS_VALIDOS},
 }
 
@@ -104,21 +118,35 @@ class Carta:
     peso_cor: float = 0.0
     semente_usada: str = ""
     palavras_chave: List[str] = field(default_factory=list)
+    # Como o tipo foi decidido: "escolhido", "nome" (inferência) ou
+    # "sorteio". `tipo_motivo` explica a pista usada na inferência.
+    tipo_origem: str = "escolhido"
+    tipo_motivo: str = ""
 
 
-def _resolver_tipo(tipo: Optional[str]) -> Optional[str]:
+def _resolver_tipo(tipo: Optional[str]) -> str:
     """Converte a opção escolhida na interface para a chave interna usada
     pelos modelos (ex: "Instantânea" -> "instant"). Aceita também a própria
-    chave interna. None ou "Aleatório" devolvem None (o pipeline sorteia).
+    chave interna.
+
+    None/vazio/"Automático" devolvem a sentinela `_TIPO_AUTO` (o pipeline
+    tenta inferir pelo nome e, se não conseguir, sorteia). "Aleatório"
+    devolve `_TIPO_SORTEAR` (sorteia sem tentar inferir).
 
     A comparação ignora acentos e maiúsculas, então "Instantanea" e
     "instantanea" também funcionam."""
     if tipo is None:
-        return None
+        return _TIPO_AUTO
+    if tipo in {_TIPO_AUTO, _TIPO_SORTEAR}:
+        # Aceita também os valores de TIPOS_DISPONIVEIS, para quem passar
+        # TIPOS_DISPONIVEIS[opcao] em vez do texto da opção.
+        return tipo
 
     normalizado = _remover_acentos(str(tipo)).strip().casefold()
-    if normalizado in {"", _remover_acentos(TIPO_ALEATORIO).casefold()}:
-        return None
+    if normalizado in {"", "auto", "automatico", _remover_acentos(TIPO_AUTOMATICO).casefold()}:
+        return _TIPO_AUTO
+    if normalizado in {"aleatorio", "random", _remover_acentos(TIPO_ALEATORIO).casefold()}:
+        return _TIPO_SORTEAR
 
     for chave in TIPOS_VALIDOS:
         if normalizado == chave.casefold():
@@ -126,7 +154,7 @@ def _resolver_tipo(tipo: Optional[str]) -> Optional[str]:
         if normalizado == _remover_acentos(TIPOS_DISPLAY[chave]).casefold():
             return chave
 
-    opcoes = ", ".join([TIPO_ALEATORIO, *TIPOS_DISPLAY.values()])
+    opcoes = ", ".join([TIPO_AUTOMATICO, TIPO_ALEATORIO, *TIPOS_DISPLAY.values()])
     raise ValueError(f"Tipo inválido: {tipo!r}. Use um de: {opcoes}.")
 
 
@@ -139,19 +167,24 @@ def gerar_carta(
     """Ponto de entrada único do pipeline.
 
     Recebe o nome, a cor e (opcionalmente) o tipo e o peso da cor na
-    geração, e devolve um objeto `Carta` pronto para ser exibido. Se `tipo`
-    for None/"Aleatório", o pipeline sorteia um tipo suportado.
+    geração, e devolve um objeto `Carta` pronto para ser exibido.
+
+    Se `tipo` for None/vazio/"Automático", o pipeline tenta inferir o tipo
+    pelo nome (ver pipeline.tipo_por_nome) e, se não houver sinal ou
+    houver empate, sorteia. Se for "Aleatório", sorteia direto.
 
     Ordem das etapas (importante: cada uma depende da anterior):
-        1. [FEITO] decide o TIPO (Criatura, Instantânea, Feitiço, Artefato
-           ou Encantamento);
+        1. [FEITO] decide o TIPO (Criatura, Instantânea, Feitiço, Artefato,
+           Encantamento ou Terreno) -- escolhido, inferido pelo nome ou
+           sorteado;
         2. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
            naquele tipo (bigramas/trigramas por tipo e cor) -- ver
            pipeline.texto_markov. Instants/sorceries não têm habilidades
            ativadas;
         3. [FEITO] texto gerado -> regressão (scikit-learn, treinada nas
            cartas reais da Scryfall) -> custo de mana; poder/resistência
-           apenas para criaturas -- ver pipeline.estrutura;
+           apenas para criaturas; terrenos não têm custo nem P/T -- ver
+           pipeline.estrutura;
         4. texto gerado -> classificador PyTorch -> mede o quão "on-color"
            o texto gerado ficou (métrica/diagnóstico, não filtro);
         5. nome + tipo + texto -> prompt -> API de imagem -> arte;
@@ -162,14 +195,32 @@ def gerar_carta(
 
     nome = nome.strip() or "Carta Sem Nome"
     cor_abrev = COLOR_PIE[cor]["abrev"]
-    tipo_chave = _resolver_tipo(tipo)
+    decisao = _resolver_tipo(tipo)
 
     modelo = _obter_modelo()
 
-    # Etapa 1: decide o tipo (sorteio ponderado pela frequência no corpus
-    # se o usuário não escolheu um).
-    if tipo_chave is None:
+    # Etapa 1: decide o tipo. A ordem de preferência é: escolha explícita
+    # do usuário > inferência pelo nome > sorteio ponderado pela frequência
+    # real no corpus.
+    if decisao == _TIPO_SORTEAR:
         tipo_chave = modelo.sortear_tipo()
+        tipo_origem = "sorteio"
+        tipo_motivo = "tipo sorteado (opção Aleatório)"
+    elif decisao == _TIPO_AUTO:
+        inferencia = inferir_tipo_por_nome(nome)
+        if inferencia.tipo is None:
+            tipo_chave = modelo.sortear_tipo()
+            tipo_origem = "sorteio"
+            tipo_motivo = inferencia.motivo
+        else:
+            tipo_chave = inferencia.tipo
+            tipo_origem = "nome"
+            tipo_motivo = inferencia.motivo
+    else:
+        tipo_chave = decisao
+        tipo_origem = "escolhido"
+        tipo_motivo = "tipo escolhido manualmente"
+
     tipo_display = TIPOS_DISPLAY[tipo_chave]
 
     # Etapa 2: habilidades condicionadas ao tipo escolhido.
@@ -207,6 +258,8 @@ def gerar_carta(
         peso_cor=peso_cor,
         semente_usada=resultado["semente"] or "",
         palavras_chave=resultado["palavras_chave"],
+        tipo_origem=tipo_origem,
+        tipo_motivo=tipo_motivo,
     )
 
 
@@ -240,13 +293,16 @@ def _imagem_placeholder(
     # Linha de tipo logo abaixo do nome (ex: "Criatura" / "Instantânea").
     draw.text((30, 45), tipo_img, fill="black")
     # Custo de mana alinhado à direita (o custo pode ser longo tipo
-    # "{2}{W}{W}", herdo do formato do Oracle).
-    largura_custo = draw.textlength(custo_mana)
-    draw.text((largura - 30 - largura_custo, 25), custo_mana, fill="black")
+    # "{2}{W}{W}", herdo do formato do Oracle). Terrenos não têm custo --
+    # nesse caso o campo vem vazio e simplesmente não desenhamos nada.
+    if custo_mana:
+        largura_custo = draw.textlength(custo_mana)
+        draw.text((largura - 30 - largura_custo, 25), custo_mana, fill="black")
     draw.rectangle([30, 420, largura - 30, altura - 60], fill="white", outline="black")
     draw.multiline_text((40, 435), _quebrar_linhas(texto_img, 55), fill="black")
     # Poder/resistência no rodapé, como nas cartas reais (só se houver --
-    # instants, sorceries, artefatos e encantamentos não-criatura não têm).
+    # instants, sorceries, artefatos, encantamentos não-criatura e terrenos
+    # não têm).
     if poder is not None and resistencia is not None:
         draw.text((largura - 75, altura - 45), f"{poder}/{resistencia}", fill="black")
 
