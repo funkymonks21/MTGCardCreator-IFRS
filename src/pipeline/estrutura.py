@@ -56,6 +56,7 @@ texto). Se os dados da Scryfall mudarem, retreine com
 from __future__ import annotations
 
 import re
+import warnings
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -317,7 +318,16 @@ class ModeloEstrutural:
     @classmethod
     def carregar(cls, caminho: str = CAMINHO_PADRAO) -> "ModeloEstrutural":
         """Carrega o artefato salvo. Levanta um erro claro se ele ainda não
-        foi treinado."""
+        foi treinado.
+
+        O artefato é um pickle de estimadores do scikit-learn. Se o ambiente
+        tiver uma versão DIFERENTE da usada no treino (ex.: Colab com
+        scikit-learn mais antigo que a máquina que treinou), o scikit-learn
+        emite um `InconsistentVersionWarning` para CADA estimador -- o que
+        polui demais o notebook. Como o carregamento costuma funcionar mesmo
+        assim (Ridge/TF-IDF são estáveis entre versões), suprimimos esse
+        aviso específico e informamos o usuário numa linha só. Outros avisos
+        continuam passando normalmente."""
         origem = Path(caminho)
         if not origem.exists():
             raise FileNotFoundError(
@@ -325,7 +335,25 @@ class ModeloEstrutural:
                 f"  python src/pipeline/treinar_modelos_estruturais.py"
             )
         try:
-            return joblib.load(origem)
+            from sklearn.exceptions import InconsistentVersionWarning
+
+            with warnings.catch_warnings(record=True) as capturados:
+                warnings.simplefilter("always", InconsistentVersionWarning)
+                modelo = joblib.load(origem)
+
+            if any(
+                issubclass(w.category, InconsistentVersionWarning) for w in capturados
+            ):
+                versao = getattr(__import__("sklearn"), "__version__", "?")
+                print(
+                    f"[aviso] {origem} foi treinado com outra versão do "
+                    f"scikit-learn (ambiente atual: {versao}). O aviso de "
+                    f"versão foi silenciado; o carregamento funcionou. Se "
+                    f"algum resultado parecer estranho, retreine com:\n"
+                    f"  python src/pipeline/treinar_modelos_estruturais.py"
+                )
+        except ImportError:  # scikit-learn muito antigo sem essa exceção
+            modelo = joblib.load(origem)
         except Exception as exc:  # artefato de versão incompatível, etc.
             raise RuntimeError(
                 f"Falha ao carregar {origem} ({exc}). Isso costuma acontecer "
@@ -333,3 +361,5 @@ class ModeloEstrutural:
                 f"scikit-learn. Retreine com:\n"
                 f"  python src/pipeline/treinar_modelos_estruturais.py"
             ) from exc
+
+        return modelo
