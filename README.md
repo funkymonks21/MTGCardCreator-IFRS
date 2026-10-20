@@ -8,9 +8,12 @@ a partir do nome ou sorteado. O pipeline é organizado em etapas: primeiro o
 tipo e os **subtipos** são decididos, depois as habilidades são geradas por
 uma cadeia de Markov (bigramas/trigramas) treinada separadamente por
 **tipo e cor** sobre o `oracle_text` real das cartas da Scryfall, e por fim
-custo de mana e poder/resistência são previstos por regressão. O peso
-ajustável (`peso_cor`) controla o quanto o vocabulário típico da cor domina
-a geração (perto de 1 = fiel à cor, perto de 0 = mais caótico/genérico).
+custo de mana e poder/resistência são previstos por regressão. Dois pesos
+ajustáveis controlam a geração do texto: `peso_cor` decide o quanto o
+vocabulário típico da cor domina a geração (perto de 1 = fiel à cor, perto
+de 0 = mais caótico/genérico), e `peso_trigrama` interpola trigrama e
+bigrama (perto de 1 = o texto segue sequências reais de três palavras do
+corpus, mais coerente; perto de 0 = mais solto/variado).
 
 Os subtipos também vêm dos dados: as quantidades e os nomes são estimados
 do corpus, condicionados pelo tipo e pela cor. Criaturas recebem 1–3
@@ -239,6 +242,9 @@ from pipeline import gerar_carta
 # None/vazio também significa automático; se a inferência não tiver
 # certeza (empate ou nome sem pista), o tipo é sorteado.
 carta = gerar_carta("Murder", "Preto", peso_cor=0.7)  # automático
+# peso_trigrama (0..1) também é aceito: perto de 1 = texto mais coerente
+# (segue sequências reais de três palavras), perto de 0 = mais solto.
+# carta = gerar_carta("Murder", "Preto", peso_cor=0.7, peso_trigrama=0.9)
 print("tipo:", carta.tipo)
 print("linha de tipo:", carta.tipo_linha)  # ex.: "Creature — Human Warrior"
 print("subtipos:", carta.subtipos)
@@ -266,7 +272,8 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] ~~Regras de color pie por cor~~ — mantido em `color_pie.py`, não
       usado na geração atual (ver decisão de design no topo deste README)
 - [x] Geração de texto via cadeia de Markov por tipo e cor, com peso
-      ajustável, preservando números e modificadores de P/T (`3`,
+      ajustável da cor (`peso_cor`) e dos trigramas sobre os bigramas
+      (`peso_trigrama`), preservando números e modificadores de P/T (`3`,
       `+1/+1`, `-1/-1`, `2/2`, `+X/+X`) e completando padrões incompletos
       (“gets until...”, “deals damage...” sem valor) — `src/pipeline/texto_markov.py`
 - [x] Tipos de carta (criatura, instantânea, feitiço, artefato,

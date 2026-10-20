@@ -44,7 +44,7 @@ from PIL import Image, ImageDraw
 from .estrutura import ModeloEstrutural
 from .regras_tipo import ajustar_subtipos_por_texto, aplicar_regras_texto
 from .subtipos import ModeloSubtipos
-from .texto_markov import carregar_modelo
+from .texto_markov import PESO_TRIGRAMA_PADRAO, carregar_modelo
 from .tipo_por_nome import inferir_tipo_por_nome
 from .tipos import TIPOS_COM_PODER_RESISTENCIA, TIPOS_DISPLAY, TIPOS_VALIDOS
 
@@ -62,6 +62,11 @@ COLOR_PIE = {
 # pipeline.texto_markov.ModeloMarkovPorCor). Exposto aqui porque é um
 # parâmetro que faz sentido o notebook poder sobrescrever.
 PESO_COR_PADRAO = 0.7
+
+# Peso padrão dos trigramas sobre os bigramas na geração de texto (ver
+# pipeline.texto_markov, onde está definido). Valores perto de 1 deixam o
+# texto mais coerente (segue sequências reais de três palavras do corpus);
+# perto de 0, mais solto. Reexportado aqui para o notebook/app poder usar.
 
 # Opções de tipo expostas para a interface.
 #
@@ -140,6 +145,7 @@ class Carta:
     resistencia: Optional[int] = None
     # Campos de transparência: mostram COMO o sistema chegou no resultado.
     peso_cor: float = 0.0
+    peso_trigrama: float = 0.0
     semente_usada: str = ""
     palavras_chave: List[str] = field(default_factory=list)
     # Como o tipo foi decidido: "escolhido", "nome" (inferência) ou
@@ -187,11 +193,13 @@ def gerar_carta(
     cor: str,
     peso_cor: float = PESO_COR_PADRAO,
     tipo: Optional[str] = None,
+    peso_trigrama: float = PESO_TRIGRAMA_PADRAO,
 ) -> Carta:
     """Ponto de entrada único do pipeline.
 
-    Recebe o nome, a cor e (opcionalmente) o tipo e o peso da cor na
-    geração, e devolve um objeto `Carta` pronto para ser exibido.
+    Recebe o nome, a cor e (opcionalmente) o tipo, o peso da cor e o peso
+    dos trigramas na geração, e devolve um objeto `Carta` pronto para ser
+    exibido.
 
     Se `tipo` for None/vazio/"Automático", o pipeline tenta inferir o tipo
     pelo nome (ver pipeline.tipo_por_nome) e, se não houver sinal ou
@@ -208,7 +216,9 @@ def gerar_carta(
         3. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
            naquele tipo (bigramas/trigramas por tipo e cor) -- ver
            pipeline.texto_markov. Instants/sorceries não têm habilidades
-           ativadas;
+           ativadas. O parâmetro `peso_trigrama` (0..1) controla o quanto
+           os trigramas pesam sobre os bigramas: mais alto = texto mais
+           coerente;
         4. [FEITO] aplica as regras de texto do tipo/subtipo: Aura sempre
            tem "Enchant ...", Equipamento sempre tem "Equip ...", terreno
            com tipo básico ganha a habilidade de mana correspondente --
@@ -261,9 +271,12 @@ def gerar_carta(
     modelo_subtipos = _obter_modelos_subtipos()
     subtipos = modelo_subtipos.sortear(tipo_chave, cor_abrev, peso_cor, rng)
 
-    # Etapa 3: habilidades condicionadas ao tipo escolhido.
+    # Etapa 3: habilidades condicionadas ao tipo escolhido. `peso_trigrama`
+    # (0..1) controla o peso dos trigramas sobre os bigramas: perto de 1 o
+    # texto segue sequências reais de três palavras (mais coerente), perto
+    # de 0 fica mais solto (ver pipeline.texto_markov).
     resultado = modelo.gerar_texto(
-        cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome
+        cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome, peso_trigrama=peso_trigrama
     )
     texto_regras = resultado["texto"]
 
@@ -312,6 +325,7 @@ def gerar_carta(
         poder=poder,
         resistencia=resistencia,
         peso_cor=peso_cor,
+        peso_trigrama=peso_trigrama,
         semente_usada=resultado["semente"] or "",
         palavras_chave=resultado["palavras_chave"],
         tipo_origem=tipo_origem,
