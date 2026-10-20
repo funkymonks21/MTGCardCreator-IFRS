@@ -1,6 +1,6 @@
 """
 Geração de texto de regras via modelo estatístico de linguagem (cadeia de
-Markov sobre bigramas/trigramas), treinado separadamente por cor.
+Markov sobre bigramas/trigramas), treinado separadamente por TIPO e por cor.
 
 Substitui a abordagem anterior (mecânica fixa -> template fixo, com regras
 de color pie bloqueando combinações) por algo propositalmente mais
@@ -79,6 +79,22 @@ Três correções importantes feitas após os primeiros testes
    re-treinado depois desta mudança, senão o vocabulário não tem os
    símbolos e a geração nunca os emite.
 
+Modelos por tipo de carta
+=========================
+O modelo antigo só olhava a cor, então o texto de uma criatura podia
+"vazar" para um instantâneo (e vice-versa). Como o projeto agora gera
+Criatura, Instantânea, Feitiço, Artefato e Encantamento, o treino é feito
+por TIPO: um ModeloMarkovPorCor separado para cada tipo de carta, usando
+só as cartas daquele tipo (ver pipeline/tipos.py). O artefato salvo é um
+ModeloTextoPorTipo -- um wrapper que escolhe o modelo do tipo pedido (ou
+sorteia um tipo, ponderado pela frequência real no corpus).
+
+Consequência prática: instants/sorceries aprendem textos de mágica
+(efeitos que não viram permanentes) e artefatos/encantamentos aprendem
+textos de permanente -- incluindo habilidades ativadas. Instants e
+sorceries não têm habilidades ativadas ("custo + ':' + efeito"), então
+essas linhas são filtradas no treino e evitadas na geração.
+
 Por que misturar com um modelo global (e não só usar o da cor)
 ================================================================
 Com poucos milhares de cartas por cor, um modelo de TRIGRAMAS treinado só
@@ -100,6 +116,7 @@ import nltk
 import pandas as pd
 
 from .mecanicas import DICIONARIO_MECANICAS, inferir_mecanica
+from .tipos import TIPOS_SEM_HABILIDADE_ATIVADA, TIPOS_VALIDOS, tipo_da_carta
 
 TOKEN_INICIO = "<INICIO>"
 TOKEN_FIM = "<FIM>"
@@ -445,9 +462,17 @@ def _palavra_semente(nome: Optional[str]) -> Optional[str]:
 class ModeloMarkovPorCor:
     """Modelos de bigramas/trigramas (texto de habilidade) e de
     frequência de keywords, treinados por cor, mais um modelo global
-    (todas as cores), usados em conjunto na geração."""
+    (todas as cores), usados em conjunto na geração.
 
-    def __init__(self, df_cartas: pd.DataFrame):
+    Cada instância é treinada com as cartas de UM tipo (creature, instant,
+    sorcery, artifact, enchantment -- ver pipeline/tipos.py). O parâmetro
+    `tipo` também define as regras de estrutura: instants/sorceries não
+    podem ter habilidades ativadas (custo + ":"), então essas linhas são
+    ignoradas no treino e evitadas na geração."""
+
+    def __init__(self, df_cartas: pd.DataFrame, tipo: str = "creature"):
+        self.tipo = tipo
+        self.permitir_habilidade_ativada = tipo not in TIPOS_SEM_HABILIDADE_ATIVADA
         self.bigramas_por_cor: Dict[str, Dict[str, Counter]] = {}
         self.trigramas_por_cor: Dict[str, Dict[Tuple[str, str], Counter]] = {}
         self.unigramas_por_cor: Dict[str, Counter] = {}
@@ -487,6 +512,16 @@ class ModeloMarkovPorCor:
                 total_keywords_desta_carta = 0
 
                 for linha in linhas:
+                    # Instants/sorceries não têm habilidades ativadas
+                    # ("custo: efeito"). O corpus tem pouquíssimas
+                    # exceções (ativadas do cemitério/mão), que excluímos
+                    # do treino para o modelo não aprender esse formato.
+                    if (
+                        not self.permitir_habilidade_ativada
+                        and _PADRAO_SIMBOLO.match(linha)
+                    ):
+                        continue
+
                     kws_da_linha = _linha_e_so_keywords(linha)
 
                     if kws_da_linha is not None:
@@ -576,6 +611,18 @@ class ModeloMarkovPorCor:
 
             candidatos = list(dist.keys())
             pesos = list(dist.values())
+            if not self.permitir_habilidade_ativada and not palavras_geradas:
+                # Instants/sorceries não têm habilidades ativadas: impede
+                # que a linha comece com um custo ("{...}: efeito").
+                sem_custo = [
+                    (c, w)
+                    for c, w in zip(candidatos, pesos)
+                    if not _eh_simbolo(c)
+                ]
+                if sem_custo:
+                    candidatos = [c for c, _ in sem_custo]
+                    pesos = [w for _, w in sem_custo]
+
             proxima = rng.choices(candidatos, weights=pesos, k=1)[0]
 
             if proxima == TOKEN_FIM:
@@ -661,7 +708,69 @@ class ModeloMarkovPorCor:
         }
 
 
-def carregar_modelo(caminho: str = "models/modelo_markov.pkl") -> "ModeloMarkovPorCor":
+class ModeloTextoPorTipo:
+    """Guarda um `ModeloMarkovPorCor` por tipo de carta (creature, instant,
+    sorcery, artifact, enchantment -- ver pipeline/tipos.py).
+
+    O pipeline decide o tipo ANTES de gerar o texto: como cada modelo é
+    treinado só com cartas daquele tipo, as habilidades geradas combinam
+    com ele (um instantâneo gera efeitos de mágica, um artefato gera texto
+    de permanente com habilidades ativadas etc.)."""
+
+    def __init__(self, df_cartas: pd.DataFrame, tipos: Optional[List[str]] = None):
+        tipos = list(tipos) if tipos is not None else list(TIPOS_VALIDOS)
+        self.tipos = tipos
+        self.modelos: Dict[str, ModeloMarkovPorCor] = {}
+        self.contagem_por_tipo: Counter = Counter()
+
+        tipo_de_cada_carta = df_cartas["type_line"].map(tipo_da_carta)
+        for tipo in tipos:
+            cartas_do_tipo = df_cartas[tipo_de_cada_carta == tipo]
+            if cartas_do_tipo.empty:
+                continue
+            self.contagem_por_tipo[tipo] = len(cartas_do_tipo)
+            self.modelos[tipo] = ModeloMarkovPorCor(cartas_do_tipo, tipo=tipo)
+
+    def sortear_tipo(self, rng: Optional[random.Random] = None) -> str:
+        """Sorteia um tipo suportado, ponderado pela frequência real no
+        corpus (criaturas são as mais comuns)."""
+        rng = rng or random.Random()
+        tipos = list(self.modelos)
+        pesos = [self.contagem_por_tipo[t] for t in tipos]
+        return rng.choices(tipos, weights=pesos, k=1)[0]
+
+    def gerar_texto(
+        self,
+        cor: str,
+        tipo: Optional[str] = None,
+        peso_cor: float = 0.7,
+        nome: Optional[str] = None,
+        max_palavras: int = 20,
+        seed: Optional[int] = None,
+    ) -> dict:
+        """Gera o texto para (cor, tipo). Se `tipo` for None, sorteia um
+        tipo ponderado pela frequência no corpus. O dict de retorno é o
+        mesmo de `ModeloMarkovPorCor.gerar_texto`, com a chave extra
+        "tipo"."""
+        if tipo is None:
+            tipo = self.sortear_tipo(random.Random(seed))
+        if tipo not in self.modelos:
+            raise ValueError(
+                f"Tipo inválido: {tipo!r}. Use um de {sorted(self.modelos)}."
+            )
+
+        resultado = self.modelos[tipo].gerar_texto(
+            cor,
+            peso_cor=peso_cor,
+            nome=nome,
+            max_palavras=max_palavras,
+            seed=seed,
+        )
+        resultado["tipo"] = tipo
+        return resultado
+
+
+def carregar_modelo(caminho: str = "models/modelo_markov.pkl") -> "ModeloTextoPorTipo":
     """Carrega o modelo pré-treinado do disco. Levanta um erro claro se o
     artefato ainda não foi gerado (ver treinar_modelo_markov.py)."""
     import pickle

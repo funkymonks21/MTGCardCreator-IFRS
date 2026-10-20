@@ -22,7 +22,12 @@ Como funciona
    Um `MultiOutputRegressor(Ridge)` prevê esses dois valores a partir de:
      - TF-IDF (1-2 grams) do oracle_text;
      - features numéricas (nº de palavras, nº de linhas);
-     - one-hot da cor da carta.
+     - one-hot da cor da carta;
+     - one-hot do TIPO de carta (creature, instant, sorcery, artifact,
+       enchantment -- ver pipeline/tipos.py).
+   O tipo entra como feature porque o custo típico depende dele: feitiços
+   e instantâneas costumam ser mais baratos que criaturas do mesmo
+   "tamanho" de texto, artefatos baratos são comuns etc.
    Na hora de gerar, o custo é remontado no formato do Oracle:
    `{generico}{W}{W}`, garantindo pelo menos um símbolo colorido quando o
    custo previsto é >= 1 (carta colorida sempre tem ao menos um pip).
@@ -33,7 +38,10 @@ Como funciona
    o custo entra como feature porque é o sinal mais forte de "quão grande"
    a criatura deve ser (o mesmo texto de uma carta barata e de uma cara
    produz corpos diferentes). Os valores previstos são arredondados e
-   presos ao intervalo [0, 20].
+   presos ao intervalo [0, 20]. Este modelo NÃO é usado para instants,
+   sorceries, artefatos ou encantamentos não-criatura: o `generator` só
+   chama `prever_poder_resistencia` quando o tipo é criatura (ver
+   pipeline/tipos.py, TIPOS_COM_PODER_RESISTENCIA).
 
 Artefato
 ========
@@ -58,6 +66,8 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from .tipos import tipo_da_carta
+
 CORES_VALIDAS = ["W", "U", "B", "R", "G"]
 
 # Regularização do Ridge. Valores em torno de 1.0 tiveram o melhor erro
@@ -74,7 +84,7 @@ _SIMBOLO = re.compile(r"\{([^}]*)\}")
 
 # Colunas de features usadas por cada modelo. Manter como listas facilita
 # garantir que treino e inferência montem exatamente o mesmo DataFrame.
-FEATURES_CUSTO = ["texto", "n_palavras", "n_linhas", "cor"]
+FEATURES_CUSTO = ["texto", "n_palavras", "n_linhas", "cor", "tipo"]
 FEATURES_PT = ["texto", "n_palavras", "n_linhas", "cmc", "cor"]
 NUMERICAS_CUSTO = ["n_palavras", "n_linhas"]
 NUMERICAS_PT = ["n_palavras", "n_linhas", "cmc"]
@@ -133,12 +143,14 @@ def preparar_dados_custo(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
             ),
             "n_linhas": df["oracle_text"].map(lambda t: str(t).count("\n") + 1),
             "cor": df["colors"].map(_cor_da_carta),
+            "tipo": df["type_line"].map(tipo_da_carta),
             "mana_cost": df["mana_cost"].fillna(""),
             "cmc": df["cmc"],
         }
     )
     dados = dados[
         dados["cor"].notna()
+        & dados["tipo"].notna()
         & dados["mana_cost"].str.fullmatch(_MANA_SIMPLES)
         & dados["cmc"].notna()
     ].copy()
@@ -173,10 +185,11 @@ def preparar_dados_pt(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     return dados[FEATURES_PT], dados[["poder", "resistencia"]]
 
 
-def _construir_pipeline(numericas: List[str]) -> Pipeline:
+def _construir_pipeline(numericas: List[str], categoricas: List[str]) -> Pipeline:
     """Pipeline scikit-learn compartilhado: TF-IDF do texto + escalonamento
-    das features numéricas + one-hot da cor, alimentando um Ridge
-    multi-saída (prevê os dois alvos de uma vez)."""
+    das features numéricas + one-hot das categóricas (cor e, no custo,
+    tipo), alimentando um Ridge multi-saída (prevê os dois alvos de uma
+    vez)."""
     pre_processamento = ColumnTransformer(
         [
             (
@@ -191,7 +204,7 @@ def _construir_pipeline(numericas: List[str]) -> Pipeline:
                 "texto",
             ),
             ("numericas", StandardScaler(), numericas),
-            ("cor", OneHotEncoder(handle_unknown="ignore"), ["cor"]),
+            ("categoricas", OneHotEncoder(handle_unknown="ignore"), categoricas),
         ]
     )
     return Pipeline(
@@ -203,17 +216,23 @@ def _construir_pipeline(numericas: List[str]) -> Pipeline:
 
 
 def construir_pipeline_custo() -> Pipeline:
-    """Pipeline de regressão do custo de mana (alvos: cmc e pips)."""
-    return _construir_pipeline(NUMERICAS_CUSTO)
+    """Pipeline de regressão do custo de mana (alvos: cmc e pips; features
+    incluem cor e tipo)."""
+    return _construir_pipeline(NUMERICAS_CUSTO, ["cor", "tipo"])
 
 
 def construir_pipeline_pt() -> Pipeline:
     """Pipeline de regressão de poder/resistência (alvos: poder e
-    resistência)."""
-    return _construir_pipeline(NUMERICAS_PT)
+    resistência; só criaturas, então não há feature de tipo)."""
+    return _construir_pipeline(NUMERICAS_PT, ["cor"])
 
 
-def _features_inferencia(texto: str, cor: str, cmc: Optional[float] = None) -> pd.DataFrame:
+def _features_inferencia(
+    texto: str,
+    cor: str,
+    tipo: Optional[str] = None,
+    cmc: Optional[float] = None,
+) -> pd.DataFrame:
     """Monta o DataFrame de UMA linha com as mesmas colunas usadas no
     treino, a partir do texto gerado pela cadeia de Markov."""
     texto_limpo = _limpar_texto(texto)
@@ -223,6 +242,8 @@ def _features_inferencia(texto: str, cor: str, cmc: Optional[float] = None) -> p
         "n_linhas": str(texto).count("\n") + 1,
         "cor": cor,
     }
+    if tipo is not None:
+        linha["tipo"] = tipo
     if cmc is not None:
         linha["cmc"] = float(cmc)
     return pd.DataFrame([linha])
@@ -244,13 +265,15 @@ class ModeloEstrutural:
         self.modelo_custo = modelo_custo
         self.modelo_pt = modelo_pt
 
-    def prever_custo_mana(self, texto: str, cor: str) -> Tuple[str, int]:
-        """Prevê o custo de mana de uma carta da cor `cor` a partir do seu
-        texto. Retorna (custo_formatado, cmc_previsto)."""
+    def prever_custo_mana(self, texto: str, cor: str, tipo: str) -> Tuple[str, int]:
+        """Prevê o custo de mana de uma carta da cor `cor` e do tipo `tipo`
+        a partir do seu texto. Retorna (custo_formatado, cmc_previsto)."""
         if cor not in CORES_VALIDAS:
             raise ValueError(f"Cor inválida: {cor!r}. Use uma de {CORES_VALIDAS}.")
 
-        previsao = self.modelo_custo.predict(_features_inferencia(texto, cor))[0]
+        previsao = self.modelo_custo.predict(
+            _features_inferencia(texto, cor, tipo=tipo)
+        )[0]
         cmc = max(0, int(round(float(previsao[0]))))
         pips = max(0, int(round(float(previsao[1]))))
 

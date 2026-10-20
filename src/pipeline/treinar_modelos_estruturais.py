@@ -75,6 +75,7 @@ def main():
     X_custo, y_custo = preparar_dados_custo(df)
     X_pt, y_pt = preparar_dados_pt(df)
     print(f"Cartas usadas no modelo de custo: {len(X_custo)} (monocolor, mana simples)")
+    print(f"  por tipo: {X_custo['tipo'].value_counts().to_dict()}")
     print(f"Criaturas usadas no modelo de P/T: {len(X_pt)} (P/T numérico)")
 
     # 1) Avaliação em holdout, só para diagnóstico/relatório.

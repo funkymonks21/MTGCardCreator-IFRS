@@ -1,12 +1,19 @@
 # MTG Card Generator
 
 Projeto acadêmico (disciplina de IA e Bibliotecas de Dados para Python) que
-gera cartas de *Magic: The Gathering* originais a partir de um **nome** e
-uma **cor** escolhidos pelo usuário. O texto de regras é gerado por uma
-cadeia de Markov (bigramas/trigramas) treinada separadamente por cor sobre
-o `oracle_text` real das cartas da Scryfall, com um peso ajustável que
-controla o quanto o vocabulário típico da cor domina a geração (`peso_cor`:
-perto de 1 = fiel à cor, perto de 0 = mais caótico/genérico).
+gera cartas de *Magic: The Gathering* originais a partir de um **nome**, uma
+**cor** e um **tipo** (Criatura, Instantânea, Feitiço, Artefato ou
+Encantamento) escolhidos pelo usuário. O pipeline é organizado em etapas:
+primeiro o tipo é decidido, depois as habilidades são geradas por uma
+cadeia de Markov (bigramas/trigramas) treinada separadamente por **tipo e
+cor** sobre o `oracle_text` real das cartas da Scryfall, e por fim custo de
+mana e poder/resistência são previstos por regressão. O peso ajustável
+(`peso_cor`) controla o quanto o vocabulário típico da cor domina a geração
+(perto de 1 = fiel à cor, perto de 0 = mais caótico/genérico).
+
+Instants e sorceries não têm habilidades ativadas nem poder/resistência;
+artefatos e encantamentos não-criatura também não têm P/T. Só criaturas
+recebem poder/resistência.
 
 > **Decisão de design:** não há filtro de color pie na geração atual —
 > isso é proposital (ver `src/pipeline/generator.py`). Uma primeira versão
@@ -23,13 +30,14 @@ treinar nenhum modelo — o notebook usa os artefatos já treinados que ficam
 versionados em `models/`.
 
 > Status atual: obtenção dos dados (Scryfall), geração de texto via
-> cadeia de Markov por cor (`src/pipeline/texto_markov.py`) e geração de
-> custo de mana + poder/resistência via regressão scikit-learn
-> (`src/pipeline/estrutura.py`) já funcionando, com peso da cor
-> ajustável. A imagem final ainda é um placeholder (Pillow). As próximas
-> etapas (classificador de cor em PyTorch como métrica de diagnóstico,
-> grafo de transições com NetworkX/Matplotlib, arte via API de imagem e
-> composição final em OpenCV) vão preencher o que falta em
+> cadeia de Markov por tipo e cor (`src/pipeline/texto_markov.py`),
+> criação de cartas de 5 tipos (criatura, instantânea, feitiço, artefato,
+> encantamento) e geração de custo de mana + poder/resistência via
+> regressão scikit-learn (`src/pipeline/estrutura.py`) já funcionando, com
+> peso da cor ajustável. A imagem final ainda é um placeholder (Pillow).
+> As próximas etapas (classificador de cor em PyTorch como métrica de
+> diagnóstico, grafo de transições com NetworkX/Matplotlib, arte via API de
+> imagem e composição final em OpenCV) vão preencher o que falta em
 > `src/pipeline/`, sem alterar a interface do notebook.
 
 ## Stack
@@ -51,7 +59,7 @@ MTGCardCreator-IFRS/
 │   ├── raw/              # JSON bruto baixado da Scryfall (gitignored)
 │   └── processed/        # cards.csv / cards.parquet prontos para uso (gitignored)
 ├── models/
-│   ├── modelo_markov.pkl          # cadeia de Markov por cor, já treinada (versionado no git)
+│   ├── modelo_markov.pkl          # cadeia de Markov por tipo e cor, já treinada (versionado no git)
 │   └── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
 ├── notebooks/
 │   └── demo.ipynb              # interface do projeto: roda no Colab, chama o pipeline
@@ -59,8 +67,9 @@ MTGCardCreator-IFRS/
 │   ├── data/
 │   │   └── fetch_scryfall_data.py      # obtenção dos dados brutos
 │   └── pipeline/
-│       ├── generator.py                # ponto de entrada do pipeline (gerar_carta)
-│       ├── texto_markov.py             # geração de texto via cadeia de Markov por cor
+│       ├── generator.py                # ponto de entrada (tipo -> habilidades -> custo/P/T)
+│       ├── tipos.py                    # tipos suportados e regras (P/T, habilidades ativadas)
+│       ├── texto_markov.py             # geração de texto via cadeia de Markov por tipo e cor
 │       ├── treinar_modelo_markov.py    # script de treino -> gera models/modelo_markov.pkl
 │       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
 │       ├── treinar_modelos_estruturais.py  # script de treino -> models/modelos_estruturais.pkl
@@ -72,9 +81,9 @@ MTGCardCreator-IFRS/
 
 A separação entre `src/pipeline/` (lógica) e `notebooks/demo.ipynb`
 (interface) é proposital: o notebook nunca reimplementa nada, só importa e
-chama `gerar_carta(nome, cor)`. Isso deixa claro no código onde está cada
-parte do trabalho e permite, no futuro, reaproveitar o mesmo pipeline numa
-interface diferente sem duplicar lógica.
+chama `gerar_carta(nome, cor, tipo=...)`. Isso deixa claro no código onde
+está cada parte do trabalho e permite, no futuro, reaproveitar o mesmo
+pipeline numa interface diferente sem duplicar lógica.
 
 Os dados **não ficam versionados no repositório** (o arquivo bruto da
 Scryfall passa de 100 MB). Qualquer pessoa que clonar o repositório
@@ -154,12 +163,14 @@ python src/pipeline/treinar_modelo_markov.py
 python src/pipeline/treinar_modelos_estruturais.py
 ```
 
-O primeiro treina a cadeia de Markov (bigramas/trigramas) por cor sobre o
-`oracle_text` de `data/processed/cards.parquet` e salva o resultado em
-`models/modelo_markov.pkl`. O segundo treina as duas regressões
-scikit-learn (custo de mana e poder/resistência -- ver
-`src/pipeline/estrutura.py`), imprime métricas de MAE/R² no holdout e salva
-`models/modelos_estruturais.pkl`.
+O primeiro treina um modelo de Markov (bigramas/trigramas) para CADA tipo
+de carta (criatura, instantânea, feitiço, artefato, encantamento), por cor,
+sobre o `oracle_text` de `data/processed/cards.parquet`, e salva o resultado
+em `models/modelo_markov.pkl` (um `ModeloTextoPorTipo`, que agrupa os
+modelos de cada tipo). O segundo treina as duas regressões scikit-learn
+(custo de mana -- com o tipo como feature -- e poder/resistência -- só
+criaturas; ver `src/pipeline/estrutura.py`), imprime métricas de MAE/R² no
+holdout e salva `models/modelos_estruturais.pkl`.
 
 **Esses arquivos precisam ser commitados** (ao contrário de `data/`, a
 pasta `models/` não está no `.gitignore`) — são eles que o Colab carrega,
@@ -178,10 +189,14 @@ import sys
 sys.path.insert(0, "src")
 from pipeline import gerar_carta
 
-carta = gerar_carta("Murder", "Azul", peso_cor=0.7)
-print(carta.texto_regras)
+# tipo pode ser "Criatura", "Instantânea", "Feitiço", "Artefato",
+# "Encantamento", "Aleatório" (ou None, que sorteia)
+carta = gerar_carta("Murder", "Preto", peso_cor=0.7, tipo="Instantânea")
+print("tipo:", carta.tipo)
 print("custo de mana:", carta.custo_mana)
-print("poder/resistência:", carta.poder, "/", carta.resistencia)
+if carta.poder is not None:
+    print("poder/resistência:", carta.poder, "/", carta.resistencia)
+print("texto:", carta.texto_regras)
 print("semente:", carta.semente_usada)
 ```
 
@@ -200,9 +215,13 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
       `src/pipeline/mecanicas.py`, hoje usado só como semente opcional
 - [x] ~~Regras de color pie por cor~~ — mantido em `color_pie.py`, não
       usado na geração atual (ver decisão de design no topo deste README)
-- [x] Geração de texto via cadeia de Markov por cor, com peso ajustável
-      — `src/pipeline/texto_markov.py`
-- [x] Regressão do custo de mana e de poder/resistência (Scikit-Learn)
+- [x] Geração de texto via cadeia de Markov por tipo e cor, com peso
+      ajustável — `src/pipeline/texto_markov.py`
+- [x] Tipos de carta (criatura, instantânea, feitiço, artefato,
+      encantamento) com texto condicionado ao tipo; instants/sorceries sem
+      habilidades ativadas e sem P/T — `src/pipeline/tipos.py`
+- [x] Regressão do custo de mana (com tipo como feature) e de
+      poder/resistência (só criaturas) (Scikit-Learn)
       — `src/pipeline/estrutura.py`
 - [ ] Classificador de cor em PyTorch — não mais como filtro, mas como
       *métrica de diagnóstico* ("o quão on-color este texto gerado

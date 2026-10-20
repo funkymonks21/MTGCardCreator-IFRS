@@ -9,7 +9,16 @@ etapas do projeto (scikit-learn, PyTorch, OpenCV) entrem aqui dentro, sem
 mexer na parte de interface.
 
 Decisão de design: o texto de regras é gerado por uma cadeia de Markov
-treinada por cor (ver pipeline.texto_markov), SEM filtro de color pie.
+treinada por TIPO e por cor (ver pipeline.texto_markov), SEM filtro de
+color pie. O pipeline é organizado em etapas explícitas:
+
+    1. decide o TIPO da carta (Criatura, Instantânea, Feitiço, Artefato
+       ou Encantamento) -- escolhido pelo usuário ou sorteado;
+    2. gera as HABILIDADES com o modelo de texto treinado só naquele tipo
+       (instants/sorceries não geram habilidades ativadas);
+    3. prevê CUSTO DE MANA (regressão com o tipo como feature) e, apenas
+       para criaturas, PODER/RESISTÊNCIA.
+
 A primeira versão deste projeto usava inferência de mecânica + regras
 rígidas de color pie (pipeline.mecanicas / pipeline.color_pie, ainda no
 repositório como registro do processo) -- trocamos por geração
@@ -27,6 +36,7 @@ from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
 from .texto_markov import carregar_modelo
+from .tipos import TIPOS_COM_PODER_RESISTENCIA, TIPOS_DISPLAY, TIPOS_VALIDOS
 
 # Mapeamento das 5 cores do Magic (WUBRG) para abreviação e uma cor de
 # fundo aproximada, só para o placeholder visual por enquanto.
@@ -42,6 +52,15 @@ COLOR_PIE = {
 # pipeline.texto_markov.ModeloMarkovPorCor). Exposto aqui porque é um
 # parâmetro que faz sentido o notebook poder sobrescrever.
 PESO_COR_PADRAO = 0.7
+
+# Opções de tipo expostas para a interface. "Aleatório" mapeia para None e
+# faz o pipeline sortear um tipo ponderado pela frequência real no corpus
+# (ver ModeloTextoPorTipo.sortear_tipo).
+TIPO_ALEATORIO = "Aleatório"
+TIPOS_DISPONIVEIS = {
+    TIPO_ALEATORIO: None,
+    **{TIPOS_DISPLAY[tipo]: tipo for tipo in TIPOS_VALIDOS},
+}
 
 # Carregamento "preguiçoso": o modelo só é lido do disco na primeira
 # chamada de gerar_carta, e fica em cache depois disso -- evita o custo
@@ -87,51 +106,100 @@ class Carta:
     palavras_chave: List[str] = field(default_factory=list)
 
 
-def gerar_carta(nome: str, cor: str, peso_cor: float = PESO_COR_PADRAO) -> Carta:
+def _resolver_tipo(tipo: Optional[str]) -> Optional[str]:
+    """Converte a opção escolhida na interface para a chave interna usada
+    pelos modelos (ex: "Instantânea" -> "instant"). Aceita também a própria
+    chave interna. None ou "Aleatório" devolvem None (o pipeline sorteia).
+
+    A comparação ignora acentos e maiúsculas, então "Instantanea" e
+    "instantanea" também funcionam."""
+    if tipo is None:
+        return None
+
+    normalizado = _remover_acentos(str(tipo)).strip().casefold()
+    if normalizado in {"", _remover_acentos(TIPO_ALEATORIO).casefold()}:
+        return None
+
+    for chave in TIPOS_VALIDOS:
+        if normalizado == chave.casefold():
+            return chave
+        if normalizado == _remover_acentos(TIPOS_DISPLAY[chave]).casefold():
+            return chave
+
+    opcoes = ", ".join([TIPO_ALEATORIO, *TIPOS_DISPLAY.values()])
+    raise ValueError(f"Tipo inválido: {tipo!r}. Use um de: {opcoes}.")
+
+
+def gerar_carta(
+    nome: str,
+    cor: str,
+    peso_cor: float = PESO_COR_PADRAO,
+    tipo: Optional[str] = None,
+) -> Carta:
     """Ponto de entrada único do pipeline.
 
-    Recebe o nome e a cor escolhidos pelo usuário (e, opcionalmente, o
-    peso da cor na geração) e devolve um objeto `Carta` pronto para ser
-    exibido.
+    Recebe o nome, a cor e (opcionalmente) o tipo e o peso da cor na
+    geração, e devolve um objeto `Carta` pronto para ser exibido. Se `tipo`
+    for None/"Aleatório", o pipeline sorteia um tipo suportado.
 
-    TODO (cada etapa substitui uma das funções `_placeholder` abaixo):
-        1. [FEITO] cadeia de Markov (bigramas/trigramas) por cor, com
-           peso ajustável cor/global -- ver pipeline.texto_markov
-        2. [FEITO] texto gerado -> regressão (scikit-learn, treinada nas
-           cartas reais da Scryfall) -> custo de mana + poder/resistência
-           -- ver pipeline.estrutura
-        3. texto gerado -> classificador PyTorch -> mede o quão "on-color"
-           o texto gerado ficou (métrica/diagnóstico, não filtro)
-        4. nome + tipo + texto -> prompt -> API de imagem -> arte
-        5. arte + textos -> composição final (OpenCV) -> imagem da carta
+    Ordem das etapas (importante: cada uma depende da anterior):
+        1. [FEITO] decide o TIPO (Criatura, Instantânea, Feitiço, Artefato
+           ou Encantamento);
+        2. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
+           naquele tipo (bigramas/trigramas por tipo e cor) -- ver
+           pipeline.texto_markov. Instants/sorceries não têm habilidades
+           ativadas;
+        3. [FEITO] texto gerado -> regressão (scikit-learn, treinada nas
+           cartas reais da Scryfall) -> custo de mana; poder/resistência
+           apenas para criaturas -- ver pipeline.estrutura;
+        4. texto gerado -> classificador PyTorch -> mede o quão "on-color"
+           o texto gerado ficou (métrica/diagnóstico, não filtro);
+        5. nome + tipo + texto -> prompt -> API de imagem -> arte;
+        6. arte + textos -> composição final (OpenCV) -> imagem da carta.
     """
     if cor not in COLOR_PIE:
         raise ValueError(f"Cor inválida: {cor!r}. Use uma de {list(COLOR_PIE)}.")
 
     nome = nome.strip() or "Carta Sem Nome"
     cor_abrev = COLOR_PIE[cor]["abrev"]
+    tipo_chave = _resolver_tipo(tipo)
 
     modelo = _obter_modelo()
-    resultado = modelo.gerar_texto(cor_abrev, peso_cor=peso_cor, nome=nome)
+
+    # Etapa 1: decide o tipo (sorteio ponderado pela frequência no corpus
+    # se o usuário não escolheu um).
+    if tipo_chave is None:
+        tipo_chave = modelo.sortear_tipo()
+    tipo_display = TIPOS_DISPLAY[tipo_chave]
+
+    # Etapa 2: habilidades condicionadas ao tipo escolhido.
+    resultado = modelo.gerar_texto(
+        cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome
+    )
     texto_regras = resultado["texto"]
 
-    # Regressão (scikit-learn): o custo de mana sai do texto, e o
-    # poder/resistência sai do texto + custo previsto.
+    # Etapa 3: custo de mana (o tipo entra como feature) e, só para
+    # criaturas, poder/resistência (ver pipeline.tipos).
     modelos_estruturais = _obter_modelos_estruturais()
     custo_mana, cmc_previsto = modelos_estruturais.prever_custo_mana(
-        texto_regras, cor_abrev
+        texto_regras, cor_abrev, tipo_chave
     )
-    poder, resistencia = modelos_estruturais.prever_poder_resistencia(
-        texto_regras, cor_abrev, cmc_previsto
-    )
+    poder: Optional[int] = None
+    resistencia: Optional[int] = None
+    if tipo_chave in TIPOS_COM_PODER_RESISTENCIA:
+        poder, resistencia = modelos_estruturais.prever_poder_resistencia(
+            texto_regras, cor_abrev, cmc_previsto
+        )
 
-    imagem = _imagem_placeholder(nome, cor, custo_mana, texto_regras, poder, resistencia)
+    imagem = _imagem_placeholder(
+        nome, cor, tipo_display, custo_mana, texto_regras, poder, resistencia
+    )
 
     return Carta(
         nome=nome,
         cor=cor,
         custo_mana=custo_mana,
-        tipo="Criatura — Placeholder",
+        tipo=tipo_display,
         texto_regras=texto_regras,
         imagem_final=imagem,
         poder=poder,
@@ -145,13 +213,14 @@ def gerar_carta(nome: str, cor: str, peso_cor: float = PESO_COR_PADRAO) -> Carta
 def _imagem_placeholder(
     nome: str,
     cor: str,
+    tipo: str,
     custo_mana: str,
     texto_regras: str,
     poder: Optional[int] = None,
     resistencia: Optional[int] = None,
 ) -> Image.Image:
     """Será substituído pela composição final com OpenCV, usando a arte
-    gerada pela API de imagem (etapas 4-5 do TODO acima). Por enquanto,
+    gerada pela API de imagem (etapas 5-6 do TODO acima). Por enquanto,
     desenha um retângulo simples só para a interface ter uma imagem real
     para exibir."""
     largura, altura = 480, 680
@@ -163,17 +232,21 @@ def _imagem_placeholder(
     # composição de verdade via OpenCV + fonte própria na etapa final),
     # removemos os acentos apenas para o texto desenhado na imagem.
     nome_img = _remover_acentos(nome)
+    tipo_img = _remover_acentos(tipo)
     texto_img = _remover_acentos(texto_regras)
 
     draw.rectangle([10, 10, largura - 10, altura - 10], outline="black", width=4)
     draw.text((30, 25), nome_img, fill="black")
+    # Linha de tipo logo abaixo do nome (ex: "Criatura" / "Instantânea").
+    draw.text((30, 45), tipo_img, fill="black")
     # Custo de mana alinhado à direita (o custo pode ser longo tipo
     # "{2}{W}{W}", herdo do formato do Oracle).
     largura_custo = draw.textlength(custo_mana)
     draw.text((largura - 30 - largura_custo, 25), custo_mana, fill="black")
     draw.rectangle([30, 420, largura - 30, altura - 60], fill="white", outline="black")
     draw.multiline_text((40, 435), _quebrar_linhas(texto_img, 55), fill="black")
-    # Poder/resistência no rodapé, como nas cartas reais (só se houver).
+    # Poder/resistência no rodapé, como nas cartas reais (só se houver --
+    # instants, sorceries, artefatos e encantamentos não-criatura não têm).
     if poder is not None and resistencia is not None:
         draw.text((largura - 75, altura - 45), f"{poder}/{resistencia}", fill="black")
 
