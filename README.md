@@ -235,7 +235,9 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] ~~Regras de color pie por cor~~ — mantido em `color_pie.py`, não
       usado na geração atual (ver decisão de design no topo deste README)
 - [x] Geração de texto via cadeia de Markov por tipo e cor, com peso
-      ajustável — `src/pipeline/texto_markov.py`
+      ajustável, preservando números e modificadores de P/T (`3`,
+      `+1/+1`, `-1/-1`, `2/2`, `+X/+X`) e completando padrões incompletos
+      (“gets until...”, “deals damage...” sem valor) — `src/pipeline/texto_markov.py`
 - [x] Tipos de carta (criatura, instantânea, feitiço, artefato,
       encantamento, terreno) com texto condicionado ao tipo;
       instants/sorceries sem habilidades ativadas e sem P/T; terrenos sem

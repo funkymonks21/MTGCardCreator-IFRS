@@ -79,6 +79,20 @@ Três correções importantes feitas após os primeiros testes
    re-treinado depois desta mudança, senão o vocabulário não tem os
    símbolos e a geração nunca os emite.
 
+4. NÚMEROS E MODIFICADORES DE P/T
+   O filtro antigo também descartava números e sinais: "deals 3 damage"
+   virava "deals damage", e "gets +2/+2 until end of turn" virava "gets
+   until end of turn". Agora números ("3", "-1") e modificadores de
+   poder/resistência ("+1/+1", "-1/-1", "2/2", "+X/+X") são preservados
+   como tokens atômicos. Assim a cadeia aprende "deals <n> damage",
+   "gets <modificador> until end of turn" e "put a +1/+1 counter on ...".
+   Também normalizamos o sinal de menos Unicode (−) para "-" antes de
+   tokenizar. Esse modelo também precisa ser re-treinado após a mudança.
+   Por fim, um lint (_corrigir_frases_incompletas) cobre os casos em que
+   a cadeia ainda gera "gets until..." ou "deals damage to..." sem valor:
+   ele insere um modificador de P/T ou um número, mas preserva frases
+   válidas como "deals damage equal to ...".
+
 Modelos por tipo de carta
 =========================
 O modelo antigo só olhava a cor, então o texto de uma criatura podia
@@ -292,15 +306,35 @@ def _tokenizar(texto: str) -> List[str]:
     return resultado
 
 
+# Números ("3", "-1") e modificadores de P/T ("+1/+1", "-1/-1", "2/2",
+# "+X/+X") precisam sobreviver à tokenização: sem eles a cadeia aprende
+# "deals damage" e "gets until end of turn", sem o valor. Ver item 4 no
+# docstring do módulo.
+_PADRAO_NUMERO = re.compile(r"[+-]?\d+")
+_PADRAO_PT = re.compile(r"[+-]?(?:\d+|[Xx])/[+-]?(?:\d+|[Xx])")
+
+
+def _eh_numero_ou_pt(token: str) -> bool:
+    return bool(
+        _PADRAO_NUMERO.fullmatch(token) or _PADRAO_PT.fullmatch(token)
+    )
+
+
 def _tokenizar_texto(texto: str) -> List[str]:
-    """Tokeniza um trecho de oracle_text SEM símbolos {...}. Mantém apenas:
+    """Tokeniza um trecho de oracle_text SEM símbolos {...}. Mantém:
       - palavras (minúsculas; o token especial de autorreferência "~" é
         preservado como está, ver _normalizar_autorreferencia);
+      - números e modificadores de P/T ("3", "-1", "+1/+1", "2/2",
+        "+X/+X"), que antes eram descartados e deixavam frases como
+        "deals damage" / "gets until end of turn";
       - vírgula e dois-pontos, que são os separadores de custo/efeito das
         habilidades ativadas ("{1}, {T}: ...") e também aparecem no meio
         das frases normais.
     Qualquer outra pontuação (ponto final, aspas, parênteses etc.) é
     descartada -- o ponto final é re-adicionado na saída final."""
+    # Alguns oracle_text usam o sinal de menos Unicode (−). Normalizamos
+    # para ASCII antes de tokenizar, para "-1/-1" cair no mesmo padrão.
+    texto = texto.replace("\u2212", "-")
     tokens = nltk.word_tokenize(texto)
     resultado = []
     for t in tokens:
@@ -308,6 +342,54 @@ def _tokenizar_texto(texto: str) -> List[str]:
             resultado.append(t)
         elif t == TOKEN_AUTORREFERENCIA or re.match(r"^[a-zA-Z']+$", t):
             resultado.append(t if t == TOKEN_AUTORREFERENCIA else t.lower())
+        elif _eh_numero_ou_pt(t):
+            resultado.append(t)
+    return resultado
+
+
+_MODIFICADORES_PT = (
+    "+1/+1", "+2/+2", "+1/+0", "+2/+0", "+3/+3", "+4/+4", "-1/-1", "-2/-2",
+)
+_VALORES_DANO = ("1", "2", "3", "4", "5")
+
+
+def _corrigir_frases_incompletas(
+    tokens: List[str], rng: random.Random
+) -> List[str]:
+    """Insere valor em dois padrões que a cadeia às vezes gera incompletos:
+
+      - "gets until/for/and..." -> insere um modificador de P/T antes
+        ("gets +1/+1 until ...");
+      - "deals damage to..." sem "equal" por perto e sem contexto de
+        gatilho ("whenever ...") -> insere um número antes de "damage"
+        ("deals 3 damage to ...").
+
+    A segunda regra é conservadora: "deals damage equal to ..." é uma
+    construção válida e não é tocada. O objetivo é só garantir que os
+    textos não saiam com "gets" vazio nem com dano sem valor.
+    """
+    tokens = list(tokens)
+    resultado: List[str] = []
+    for i, token in enumerate(tokens):
+        resultado.append(token)
+
+        if token == "gets":
+            proximo = tokens[i + 1] if i + 1 < len(tokens) else None
+            if proximo in {None, "until", "for", "and", ",", ":"}:
+                resultado.append(rng.choice(_MODIFICADORES_PT))
+
+        elif token == "deals":
+            if (
+                i + 1 < len(tokens)
+                and tokens[i + 1] == "damage"
+                and "equal" not in tokens[i + 2 : i + 14]
+                and not any(
+                    marcador in {"whenever", "when", "if", "time", "while", "as", "long"}
+                    for marcador in tokens[max(0, i - 8) : i]
+                )
+            ):
+                resultado.append(rng.choice(_VALORES_DANO))
+
     return resultado
 
 
@@ -693,6 +775,10 @@ class ModeloMarkovPorCor:
         # "falar de si mesma" pelo nome que o usuário escolheu.
         nome_para_substituir = nome if nome else "This creature"
         palavras_finais = [nome_para_substituir if p == TOKEN_AUTORREFERENCIA else p for p in palavras_geradas]
+
+        # Completa padrões que saíram sem valor ("gets until...",
+        # "deals damage to..." sem "equal") antes de formatar.
+        palavras_finais = _corrigir_frases_incompletas(palavras_finais, rng)
 
         # Ajusta a estrutura de habilidade ativada (custo + ":" + efeito,
         # ver item 3 do docstring do módulo) e junta os tokens na
