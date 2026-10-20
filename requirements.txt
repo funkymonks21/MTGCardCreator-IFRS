@@ -4,7 +4,12 @@ pyarrow
 numpy
 nltk
 gensim
-scikit-learn
+# scikit-learn fixado na versao usada para treinar models/modelos_estruturais.pkl.
+# O pickle dos estimadores e sensivel a versao: versoes diferentes disparam
+# InconsistentVersionWarning (silenciado no carregamento, ver
+# src/pipeline/estrutura.py) e podem ate dar resultados invalidos. Ao
+# retreinar os modelos, atualize esta versao junto.
+scikit-learn==1.9.1
 networkx
 matplotlib
 torch

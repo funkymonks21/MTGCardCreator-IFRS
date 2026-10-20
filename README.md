@@ -153,6 +153,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+> O `requirements.txt` fixa a versão do **scikit-learn** (`1.9.1`) usada para
+> treinar `models/modelos_estruturais.pkl`. O pickle dos estimadores é
+> sensível à versão: rodar com outra versão dispara
+> `InconsistentVersionWarning` (silenciado no carregamento, ver
+> `src/pipeline/estrutura.py`) e pode dar resultados inválidos. Ao
+> retreinar os modelos, atualize essa versão no `requirements.txt`.
+
 ### 4. Baixar e processar os dados das cartas
 
 ```bash
