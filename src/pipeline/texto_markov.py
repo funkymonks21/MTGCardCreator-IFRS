@@ -192,6 +192,43 @@ PESOS_NGRAMA_PADRAO = {
     0: 0.02,  # unigrama   (sem contexto) -- só o "chão", quase nunca domina
 }
 
+# Fator que "infla" a quantidade de keywords sorteada acima do que o corpus
+# real sugere (decisão de projeto: o número real de keywords é baixo -- ~59%
+# das criaturas não têm nenhuma -- e cartas sem keyword nenhuma deixam a
+# demo/apresentação sem graça). O sorteio começa pela distribuição real e
+# depois multiplica a quantidade por este fator, arredondando. 1.0 = fiel ao
+# corpus; >1 = mais keywords que o real.
+FATOR_KEYWORDS = 2.0
+
+# Teto de segurança: nunca dá mais que isso de keywords numa carta só (os
+# dados reais raramente passam de 3-4; evita exageros com o fator acima).
+MAX_KEYWORDS = 4
+
+# Máximo de parágrafos de habilidade gerados numa carta. A distribuição real
+# (ver contagem_paragrafos) raramente passa de 5; o teto evita textos
+# gigantes quando o sorteio cai na cauda.
+MAX_PARAGRAFOS = 5
+
+# Peso de cor EFETIVO por tipo. Artefatos são, em sua maioria, INCOLORES
+# (76% do corpus), e incolores não pertencem a nenhuma cor -- eles só entram
+# no modelo GLOBAL (ver `_treinar`). Como o modelo global reúne esses
+# incolores + os coloridos, ele é o vocabulário mais "artefato" que temos.
+# Por isso, para artefatos, damos MAIS peso ao global e menos à cor: o
+# `peso_cor` pedido é multiplicado por este fator antes de entrar nas
+# misturas cor/global. Tipos ausentes do dict = fator 1.0 (sem ajuste).
+AJUSTE_PESO_COR_POR_TIPO = {
+    "artifact": 0.4,
+}
+
+
+def peso_cor_efetivo(tipo: str, peso_cor: float) -> float:
+    """Ajusta o `peso_cor` pedido pelo usuário conforme o tipo da carta
+    (ver `AJUSTE_PESO_COR_POR_TIPO`). Para artefatos, reduz o peso da cor
+    porque a maioria dos artefatos reais é incolor -- o modelo global é o
+    vocabulário mais representativo."""
+    fator = AJUSTE_PESO_COR_POR_TIPO.get(tipo, 1.0)
+    return max(0.0, min(1.0, peso_cor * fator))
+
 # Keywords conhecidas (lado esquerdo = como aparecem em minúsculo no
 # oracle_text; lado direito = como devem aparecer no texto final da
 # carta gerada). Não é uma lista exaustiva de TODAS as keywords que já
@@ -690,6 +727,14 @@ class ModeloMarkovPorCor:
         self.contagem_keywords_por_cor: Dict[str, Counter] = {}
         self.contagem_keywords_global: Counter = Counter()
 
+        # contagem_paragrafos_por_cor[cor]: Counter{1: 6600, 2: 8200, 3: 2900, ...}
+        # -- quantas cartas daquela cor tinham 1, 2, 3... PARÁGRAFOS de
+        # habilidade (linhas do oracle_text). Usado pra sortear quantos
+        # parágrafos a carta gerada deve ter, respeitando a distribuição
+        # real de cada tipo (criatura costuma ter 1-2, terreno 2-3 etc.).
+        self.contagem_paragrafos_por_cor: Dict[str, Counter] = {}
+        self.contagem_paragrafos_global: Counter = Counter()
+
         self._treinar(df_cartas)
 
     # -- treino -----------------------------------------------------
@@ -704,6 +749,7 @@ class ModeloMarkovPorCor:
         unigramas: Counter,
         keywords: Counter,
         contagem_keywords: Counter,
+        contagem_paragrafos: Counter,
     ) -> None:
         """Acumula os contadores de texto/keywords de `cartas` nos
         contadores passados. Usado tanto para o modelo de cada cor quanto
@@ -713,6 +759,7 @@ class ModeloMarkovPorCor:
             linhas = _dividir_em_linhas(carta.get("oracle_text", ""))
 
             total_keywords_desta_carta = 0
+            total_paragrafos_desta_carta = 0
 
             for linha in linhas:
                 # Instants/sorceries não têm habilidades ativadas
@@ -745,6 +792,8 @@ class ModeloMarkovPorCor:
                 if len(tokens) <= 2:
                     continue  # linha vazia depois de tokenizar
 
+                total_paragrafos_desta_carta += 1
+
                 unigramas.update(tokens)
                 for w1, w2 in nltk.bigrams(tokens):
                     bigramas[w1][w2] += 1
@@ -756,6 +805,7 @@ class ModeloMarkovPorCor:
                     pentagramas[(w1, w2, w3, w4)][w5] += 1
 
             contagem_keywords[total_keywords_desta_carta] += 1
+            contagem_paragrafos[total_paragrafos_desta_carta] += 1
 
     def _treinar(self, df_cartas: pd.DataFrame):
         # Terrenos são incolores; para eles a cor vem da identidade de cor
@@ -774,10 +824,11 @@ class ModeloMarkovPorCor:
             unigramas: Counter = Counter()
             keywords: Counter = Counter()
             contagem_keywords: Counter = Counter()
+            contagem_paragrafos: Counter = Counter()
 
             self._processar_cartas(
                 cartas_da_cor, bigramas, trigramas, tetragramas, pentagramas,
-                unigramas, keywords, contagem_keywords
+                unigramas, keywords, contagem_keywords, contagem_paragrafos
             )
 
             self.bigramas_por_cor[cor] = bigramas
@@ -788,6 +839,7 @@ class ModeloMarkovPorCor:
 
             self.keywords_por_cor[cor] = keywords
             self.contagem_keywords_por_cor[cor] = contagem_keywords
+            self.contagem_paragrafos_por_cor[cor] = contagem_paragrafos
 
         # Modelo global: TODAS as cartas do tipo, uma vez cada. Fazer isso
         # separadamente (em vez de somar os modelos por cor) evita duplicar
@@ -802,6 +854,7 @@ class ModeloMarkovPorCor:
             self.unigramas_global,
             self.keywords_global,
             self.contagem_keywords_global,
+            self.contagem_paragrafos_global,
         )
 
     # -- geração: texto de habilidade ---------------------------------
@@ -952,7 +1005,16 @@ class ModeloMarkovPorCor:
 
     # -- geração: keywords ---------------------------------------------
 
-    def _escolher_keywords(self, cor: str, peso_cor: float, rng: random.Random) -> List[str]:
+    def _escolher_keywords(
+        self, cor: str, peso_cor: float, rng: random.Random
+    ) -> List[str]:
+        """Sorteia QUANTAS keywords a carta tem e então QUAIS são.
+
+        A quantidade sai da distribuição real do corpus (quantas cartas
+        tinham 0, 1, 2... keywords), depois é multiplicada por
+        `FATOR_KEYWORDS` para a carta ficar com mais keywords que a média
+        real (decisão de projeto -- ver a constante). As keywords em si são
+        sorteadas sem repetição, ponderadas pela frequência real."""
         dist_contagem = _misturar(
             self.contagem_keywords_por_cor[cor], self.contagem_keywords_global, peso_cor
         )
@@ -961,7 +1023,11 @@ class ModeloMarkovPorCor:
 
         contagens = list(dist_contagem.keys())
         pesos_contagem = list(dist_contagem.values())
-        n_keywords = rng.choices(contagens, weights=pesos_contagem, k=1)[0]
+        n_base = rng.choices(contagens, weights=pesos_contagem, k=1)[0]
+
+        # Infla a quantidade e limita ao teto. round() mantém proporção:
+        # 0 -> 0, 1 -> 2, 2 -> 4 com FATOR_KEYWORDS=2.0.
+        n_keywords = min(MAX_KEYWORDS, int(round(n_base * FATOR_KEYWORDS)))
         if n_keywords <= 0:
             return []
 
@@ -972,6 +1038,27 @@ class ModeloMarkovPorCor:
         return _amostra_sem_reposicao(
             rng, list(dist_keywords.keys()), list(dist_keywords.values()), n_keywords
         )
+
+    def _escolher_n_paragrafos(self, cor: str, peso_cor: float, rng: random.Random) -> int:
+        """Sorteia quantos PARÁGRAFOS de habilidade a carta terá, usando a
+        distribuição real do tipo/cor (quantas cartas tinham 1, 2, 3...
+        linhas de habilidade). Ex.: criaturas costumam ter 1-2, terrenos
+        2-3. Nunca devolve menos que 1 (toda carta tem ao menos um corpo de
+        texto -- tipos como terreno recebem a habilidade de mana depois)."""
+        dist = _misturar(
+            self.contagem_paragrafos_por_cor[cor],
+            self.contagem_paragrafos_global,
+            peso_cor,
+        )
+        if not dist:
+            return 1
+
+        contagens = [c for c in dist if c >= 1]  # ignora cartas sem parágrafo
+        if not contagens:
+            return 1
+        pesos = [dist[c] for c in contagens]
+        n = rng.choices(contagens, weights=pesos, k=1)[0]
+        return max(1, min(MAX_PARAGRAFOS, int(n)))
 
     # -- geração: ponto de entrada --------------------------------------
 
@@ -984,12 +1071,18 @@ class ModeloMarkovPorCor:
         seed: Optional[int] = None,
         peso_trigrama: Optional[float] = None,
         pesos_ngrama: Optional[Dict[int, float]] = None,
+        n_paragrafos: Optional[int] = None,
     ) -> dict:
         """Gera o texto de uma carta para a `cor` dada: uma linha de
-        keywords (se houver) seguida do corpo de habilidade gerado pela
-        cadeia de Markov. Retorna um dict com o texto final (já com
-        keywords + corpo combinados), as keywords separadas, o corpo
-        separado e a palavra-semente usada -- para fins de transparência.
+        keywords (se houver) seguida de um ou mais PARÁGRAFOS de habilidade
+        gerados pela cadeia de Markov. Retorna um dict com o texto final (já
+        com keywords + parágrafos combinados), as keywords separadas, os
+        parágrafos separados e a palavra-semente usada -- para transparência.
+
+        O número de parágrafos (`n_paragrafos`) é sorteado da distribuição
+        real do tipo/cor quando não informado (criaturas tendem a ter 1-2,
+        terrenos 2-3 etc. -- ver `_escolher_n_paragrafos`); cada parágrafo é
+        uma habilidade independente.
 
         A escolha da próxima palavra combina várias ordens de n-grama
         (unigrama ate pentagrama). Por padrão usa `PESOS_NGRAMA_PADRAO`
@@ -1002,25 +1095,50 @@ class ModeloMarkovPorCor:
         if cor not in CORES_VALIDAS:
             raise ValueError(f"Cor inválida: {cor!r}. Use uma de {CORES_VALIDAS}.")
 
+        # Ajusta o peso da cor conforme o tipo (artefatos -> menos peso da
+        # cor, mais do global, porque a maioria é incolor -- ver
+        # `peso_cor_efetivo`).
+        peso_cor = peso_cor_efetivo(self.tipo, peso_cor)
+
         rng = random.Random(seed)
 
         palavras_chave = self._escolher_keywords(cor, peso_cor, rng)
-        corpo, semente = self._gerar_corpo(
-            cor, peso_cor, nome, max_palavras, rng, peso_trigrama, pesos_ngrama
-        )
+
+        if n_paragrafos is None:
+            n_paragrafos = self._escolher_n_paragrafos(cor, peso_cor, rng)
+
+        # Gera cada parágrafo como uma habilidade independente. Só o PRIMEIRO
+        # usa a palavra-semente do nome (dá coerência ao começo da carta);
+        # os demais começam "do zero" (contexto = <INICIO>), como habilidades
+        # separadas de uma carta real.
+        paragrafos: List[str] = []
+        semente = None
+        for i in range(max(1, int(n_paragrafos))):
+            corpo, sem = self._gerar_corpo(
+                cor, peso_cor, nome if i == 0 else None,
+                max_palavras, rng, peso_trigrama, pesos_ngrama,
+            )
+            if i == 0:
+                semente = sem
+            if corpo:
+                paragrafos.append(corpo)
+
+        corpo_completo = "\n".join(paragrafos)
 
         partes = []
         if palavras_chave:
             partes.append(", ".join(palavras_chave))
-        if corpo:
-            partes.append(corpo)
+        if corpo_completo:
+            partes.append(corpo_completo)
 
         texto_final = "\n".join(partes) if partes else "(nenhum texto gerado)"
 
         return {
             "texto": texto_final,
             "palavras_chave": palavras_chave,
-            "corpo": corpo,
+            "corpo": corpo_completo,
+            "paragrafos": paragrafos,
+            "n_paragrafos": len(paragrafos),
             "semente": semente,
         }
 
@@ -1070,6 +1188,7 @@ class ModeloTextoPorTipo:
         seed: Optional[int] = None,
         peso_trigrama: Optional[float] = None,
         pesos_ngrama: Optional[Dict[int, float]] = None,
+        n_paragrafos: Optional[int] = None,
     ) -> dict:
         """Gera o texto para (cor, tipo). Se `tipo` for None, sorteia um
         tipo ponderado pela frequência no corpus. O dict de retorno é o
@@ -1090,6 +1209,7 @@ class ModeloTextoPorTipo:
             seed=seed,
             peso_trigrama=peso_trigrama,
             pesos_ngrama=pesos_ngrama,
+            n_paragrafos=n_paragrafos,
         )
         resultado["tipo"] = tipo
         return resultado

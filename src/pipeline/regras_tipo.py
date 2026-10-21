@@ -9,8 +9,9 @@ projeto pediu:
   Se o texto gerado já tiver uma, ela é preservada; senão, o alvo é
   sorteado das Auras reais do corpus.
 - Equipamento (Artefato — Equipment): sempre precisa ter uma habilidade
-  "Equip {custo}". Se já existir, é preservada; senão, o custo é sorteado
-  dos Equipamentos reais (compatível com a cor da carta).
+  que comece com "Equipped creature ..." (o que a criatura equipada ganha)
+  e uma habilidade "Equip {custo}". Se já existirem, são preservadas; senão,
+  são sorteadas dos Equipamentos reais (compatíveis com a cor da carta).
 - Terreno: terrenos com tipos básicos (Plains/Island/Swamp/Mountain/Forest)
   ganham a habilidade de mana correspondente; terrenos sem tipo básico
   ganham uma habilidade de mana da cor escolhida se ainda não tiverem
@@ -46,6 +47,7 @@ _RE_EQUIP = re.compile(r"(?i)^equip\b")
 _RE_EQUIP_VALIDO = re.compile(r"(?i)^equip\s+\{")
 _RE_EQUIPPED = re.compile(r"(?i)\bequipped\b")
 _RE_EQUIP_SELF = re.compile(r"(?i)\bthis equipment\b")
+_RE_EQUIPPED_CREATURE = re.compile(r"(?i)^equipped creature\b")
 _RE_MANA_SIMPLES = re.compile(r"(?i)^\{T\}:\s*Add\b")
 _RE_MANA_QUALQUER = re.compile(r"(?i)^\{T\}[^:\n]*:\s*Add\b")
 
@@ -194,6 +196,41 @@ def garantir_equip(
     return _juntar(linhas)
 
 
+def garantir_equipped_creature(
+    texto: str,
+    subtipos: List[str],
+    cor: str,
+    peso_cor: float,
+    modelo: "ModeloSubtipos",
+    rng: random.Random,
+) -> str:
+    """Garante uma linha "Equipped creature ..." em Equipamentos.
+
+    Quase todo Equipamento real (99% do corpus) tem uma habilidade que
+    começa com "Equipped creature", descrevendo o que a criatura equipada
+    ganha. Se o texto gerado já tiver uma, ela é preservada; senão, uma
+    linha real é sorteada do corpus. Fica logo antes da linha "Equip ..."
+    (ordem usual no Magic real: efeito concedido e, por último, o custo de
+    equipar).
+    """
+    if "Equipment" not in subtipos:
+        return texto
+
+    linhas = _linhas(texto)
+    if any(_RE_EQUIPPED_CREATURE.match(linha) for linha in linhas):
+        return _juntar(linhas)
+
+    linha_nova = modelo.sortear_equipped_creature(cor, peso_cor, rng)
+
+    # Insere antes da linha "Equip ..." quando ela existir; senão no fim.
+    indice_equip = next(
+        (i for i, linha in enumerate(linhas) if _RE_EQUIP.match(linha)),
+        len(linhas),
+    )
+    linhas.insert(indice_equip, linha_nova)
+    return _juntar(linhas)
+
+
 def garantir_habilidade_mana(
     texto: str,
     subtipos: List[str],
@@ -245,6 +282,9 @@ def aplicar_regras_texto(
     if tipo == "enchantment":
         return garantir_enchant(texto, subtipos, cor, peso_cor, modelo, rng)
     if tipo == "artifact":
+        texto = garantir_equipped_creature(
+            texto, subtipos, cor, peso_cor, modelo, rng
+        )
         return garantir_equip(texto, subtipos, cor, modelo, rng)
     if tipo == "land":
         return garantir_habilidade_mana(texto, subtipos, cor)

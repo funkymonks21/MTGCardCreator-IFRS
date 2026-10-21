@@ -10,6 +10,7 @@ from .generator import (
     gerar_carta,
 )
 from .subtipos import ModeloSubtipos
+from .texto_markov import FATOR_KEYWORDS, MAX_KEYWORDS, MAX_PARAGRAFOS
 from .tipo_por_nome import InferenciaTipo, inferir_tipo_por_nome
 
 __all__ = [
@@ -19,6 +20,9 @@ __all__ = [
     "PESOS_NGRAMA_PADRAO",
     "PESO_COR_PADRAO",
     "PESO_TRIGRAMA_PADRAO",
+    "FATOR_KEYWORDS",
+    "MAX_KEYWORDS",
+    "MAX_PARAGRAFOS",
     "TIPO_ALEATORIO",
     "TIPO_AUTOMATICO",
     "TIPOS_DISPONIVEIS",

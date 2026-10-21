@@ -23,17 +23,32 @@ Os subtipos também vêm dos dados: as quantidades e os nomes são estimados
 do corpus, condicionados pelo tipo e pela cor. Criaturas recebem 1–3
 subtipos de criatura, artefatos 0–1 subtipo de artefato, terrenos 0–2
 subtipos de terreno, encantamentos 0–2, e instantâneas/feitiços 0–1.
-Auras sempre ganham uma linha `Enchant ...`, Equipamentos sempre ganham
-`Equip ...`, e terrenos com tipo básico (Plains, Island, Swamp, Mountain,
-Forest) ganham a habilidade de mana correspondente. Os subtipos ficam em
-inglês, como no `type_line` original da Scryfall, para manter a coerência
-com o texto Oracle gerado (ex.: `Creature — Human Warrior`). Assim como no
-texto, as distribuições de subtipos são misturadas com um modelo global
-pelo mesmo `peso_cor`.
+Auras sempre ganham uma linha `Enchant ...`; Equipamentos sempre ganham uma
+linha `Equipped creature ...` (o que a criatura equipada recebe) e a linha
+`Equip ...` (o custo de equipar); e terrenos com tipo básico (Plains, Island,
+Swamp, Mountain, Forest) ganham a habilidade de mana correspondente. Os
+subtipos ficam em inglês, como no `type_line` original da Scryfall, para
+manter a coerência com o texto Oracle gerado (ex.: `Creature — Human
+Warrior`). Assim como no texto, as distribuições de subtipos são misturadas
+com um modelo global pelo mesmo `peso_cor`.
+
+A **quantidade de parágrafos** de habilidade e a **quantidade de keywords**
+de cada carta também vêm dos dados: o número de parágrafos é sorteado da
+distribuição de probabilidade real do tipo (ex.: criaturas costumam ter 1–2,
+terrenos 2–3) e cada parágrafo é gerado como uma habilidade independente. Os
+keywords (Flying, Trample etc.) são sorteados a partir da frequência real,
+com um fator (`FATOR_KEYWORDS`) que deixa a carta com mais keywords que a
+média do corpus, já que o número real é baixo.
 
 Instants e sorceries não têm habilidades ativadas nem poder/resistência;
 artefatos, encantamentos e terrenos não-criatura também não têm P/T, e
 terrenos não têm custo de mana. Só criaturas recebem poder/resistência.
+
+> **Artefatos incolores:** a maioria dos artefatos de Magic (76% do corpus) é
+> incolor e, portanto, não pertence a nenhuma cor — eles só entram no modelo
+> **global**. Para o tipo `artifact`, o `peso_cor` pedido é reduzido
+> (`AJUSTE_PESO_COR_POR_TIPO`) para dar mais voz ao modelo global, que é o
+> vocabulário mais representativo de artefato.
 
 **Inferência do tipo pelo nome** (`src/pipeline/tipo_por_nome.py`): com a
 opção `Automático (pelo nome)`, o sistema usa POS tagging do NLTK + WordNet
@@ -93,7 +108,7 @@ MTGCardCreator-IFRS/
 ├── models/
 │   ├── modelo_markov.pkl          # cadeia de Markov por tipo e cor, já treinada (versionado no git)
 │   ├── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
-│   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip (versionado no git)
+│   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip/Equipped (versionado no git)
 ├── notebooks/
 │   └── demo.ipynb              # interface do projeto: roda no Colab, chama o pipeline
 ├── src/
@@ -107,7 +122,7 @@ MTGCardCreator-IFRS/
 │       ├── treinar_modelo_markov.py    # script de treino -> gera models/modelo_markov.pkl
 │       ├── subtipos.py                 # modelo estatístico de subtipos (quantidade, nomes, co-ocorrência)
 │       ├── treinar_modelos_subtipos.py # script de treino -> gera models/modelos_subtipos.pkl
-│       ├── regras_tipo.py              # Enchant (Aura), Equip (Equipamento) e mana de terrenos
+│       ├── regras_tipo.py              # Enchant (Aura), Equipped creature + Equip (Equipamento) e mana de terrenos
 │       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
 │       ├── treinar_modelos_estruturais.py  # script de treino -> models/modelos_estruturais.pkl
 │       ├── mecanicas.py                # [não usado na geração] inferência de mecânica, usado só como semente opcional
@@ -214,13 +229,16 @@ por cor, sobre o `oracle_text` de `data/processed/cards.parquet`, e salva o
 resultado em `models/modelo_markov.pkl` (um `ModeloTextoPorTipo`, que agrupa
 os modelos de cada tipo). Terrenos são incolores: para eles o treino usa
 `color_identity` no lugar de `colors` (um "Forest" tem identidade G), e o
-modelo global inclui também os terrenos incolores de utilidade.
+modelo global inclui também os terrenos incolores de utilidade. O treino
+também acumula as distribuições de **quantos parágrafos** e **quantas
+keywords** cada carta tinha (por tipo e por cor), usadas depois para sortear
+esses números na geração.
 
 O segundo estima as distribuições de subtipos diretamente do corpus
 (`src/pipeline/subtipos.py`): quantidade por tipo (com os limites do
 projeto), frequência de cada subtipo por tipo e cor, co-ocorrência entre
-subtipos (para combos como "Human Warrior"), alvos de `Enchant ...` e
-custos de `Equip ...`. O resultado vai para
+subtipos (para combos como "Human Warrior"), alvos de `Enchant ...`, custos de
+`Equip ...` e linhas `Equipped creature ...`. O resultado vai para
 `models/modelos_subtipos.pkl`. Artefatos e criaturas têm pools separados:
 um `Artifact Creature` usa subtipos de criatura, e o pool de artefato
 remove qualquer nome que também seja tipo de criatura (ex.: `Wizard`).
@@ -298,8 +316,14 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] Subtipos data-driven (criatura 1–3, artefato 0–1, terreno 0–2,
       encantamento 0–2, mágica 0–1), com pools separados para criaturas e
       artefatos e coerência de cor nos terrenos — `src/pipeline/subtipos.py`
-- [x] Regras de Aura (`Enchant ...`), Equipamento (`Equip ...`) e
-      habilidade de mana de terrenos com tipo básico — `src/pipeline/regras_tipo.py`
+- [x] Número de **parágrafos** de habilidade e de **keywords** sorteado da
+      distribuição real do tipo (keywords com fator para ficar acima da
+      média do corpus) — `src/pipeline/texto_markov.py`
+- [x] Ajuste do peso cor/global para **artefatos incolores** (a maioria do
+      corpus), dando mais voz ao modelo global — `AJUSTE_PESO_COR_POR_TIPO`
+- [x] Regras de Aura (`Enchant ...`), Equipamento (`Equipped creature ...` +
+      `Equip ...`) e habilidade de mana de terrenos com tipo básico
+      — `src/pipeline/regras_tipo.py`
 - [x] Inferência do tipo pelo nome (POS tagging + WordNet) com fallback
       para sorteio em caso de empate/sem pista — `src/pipeline/tipo_por_nome.py`
 - [x] Regressão do custo de mana (com tipo como feature) e de

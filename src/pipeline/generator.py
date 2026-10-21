@@ -158,6 +158,9 @@ class Carta:
     pesos_ngrama: Dict[int, float] = field(default_factory=dict)
     semente_usada: str = ""
     palavras_chave: List[str] = field(default_factory=list)
+    # Quantidade de parágrafos de habilidade gerados (sorteada da
+    # distribuição real do tipo -- ver texto_markov._escolher_n_paragrafos).
+    n_paragrafos: int = 0
     # Como o tipo foi decidido: "escolhido", "nome" (inferência) ou
     # "sorteio". `tipo_motivo` explica a pista usada na inferência.
     tipo_origem: str = "escolhido"
@@ -222,6 +225,7 @@ def gerar_carta(
     tipo: Optional[str] = None,
     peso_trigrama: Optional[float] = None,
     pesos_ngrama: Optional[Dict[int, float]] = None,
+    n_paragrafos: Optional[int] = None,
 ) -> Carta:
     """Ponto de entrada único do pipeline.
 
@@ -244,14 +248,17 @@ def gerar_carta(
         3. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
            naquele tipo (bigramas/trigramas por tipo e cor) -- ver
            pipeline.texto_markov. Instants/sorceries não têm habilidades
-           ativadas. A próxima palavra combina várias ordens de n-grama
+           ativadas. O NÚMERO de parágrafos é sorteado da distribuição real
+           do tipo (1-2 em criaturas, 2-3 em terrenos etc.) e a quantidade de
+           KEYWORDS também (com um fator que deixa a carta mais rica que a
+           média real). A próxima palavra combina várias ordens de n-grama
            (unigrama, bigrama, trigrama, tetragrama e pentagrama) com pesos
            por ordem: por padrão `PESOS_NGRAMA_PADRAO`, ajustável via
            `pesos_ngrama` ou pelo atalho legado `peso_trigrama`;
         4. [FEITO] aplica as regras de texto do tipo/subtipo: Aura sempre
-           tem "Enchant ...", Equipamento sempre tem "Equip ...", terreno
-           com tipo básico ganha a habilidade de mana correspondente --
-           ver pipeline.regras_tipo;
+           tem "Enchant ...", Equipamento sempre tem "Equipped creature ..."
+           e "Equip ...", terreno com tipo básico ganha a habilidade de mana
+           correspondente -- ver pipeline.regras_tipo;
         5. [FEITO] texto final -> regressão (scikit-learn, treinada nas
            cartas reais da Scryfall) -> custo de mana; poder/resistência
            apenas para criaturas; terrenos não têm custo nem P/T -- ver
@@ -309,7 +316,7 @@ def gerar_carta(
     pesos_usados = _resolver_pesos_ngrama(peso_trigrama, pesos_ngrama)
     resultado = modelo.gerar_texto(
         cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome,
-        pesos_ngrama=pesos_usados,
+        pesos_ngrama=pesos_usados, n_paragrafos=n_paragrafos,
     )
     texto_regras = resultado["texto"]
 
@@ -362,6 +369,7 @@ def gerar_carta(
         pesos_ngrama=pesos_usados,
         semente_usada=resultado["semente"] or "",
         palavras_chave=resultado["palavras_chave"],
+        n_paragrafos=resultado.get("n_paragrafos", 0),
         tipo_origem=tipo_origem,
         tipo_motivo=tipo_motivo,
     )

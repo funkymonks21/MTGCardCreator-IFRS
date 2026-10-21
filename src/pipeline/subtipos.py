@@ -212,6 +212,24 @@ def _extrair_custos_equip(oracle_text: str) -> List[str]:
     return custos
 
 
+# Linha "Equipped creature ..." (a habilidade que um Equipamento concede à
+# criatura equipada). É quase universal em Equipamentos reais (99% do
+# corpus) e por isso é garantida na geração (ver regras_tipo).
+_PADRAO_EQUIPPED_CREATURE = re.compile(r"(?i)^equipped creature\b")
+
+
+def _extrair_equipped_creature(oracle_text: str) -> List[str]:
+    """Extrai linhas "Equipped creature ..." de um Equipamento real."""
+    linhas = []
+    for linha in str(oracle_text or "").split("\n"):
+        linha = re.sub(r"\([^)]*\)", "", linha).strip()
+        if _PADRAO_EQUIPPED_CREATURE.match(linha):
+            linha = linha.strip()
+            if linha:
+                linhas.append(linha)
+    return linhas
+
+
 def _custo_equip_compativel(custo: str, cor: str) -> bool:
     """Aceita custos genéricos e custos coloridos só com a cor da carta
     (evita um Equipamento vermelho com "Equip {2}{G}", por exemplo)."""
@@ -274,6 +292,12 @@ class ModeloSubtipos:
         }
         self.custos_equip_global: Counter = Counter()
         self.custos_equip_por_cor: Dict[str, Counter] = {
+            cor: Counter() for cor in CORES_VALIDAS
+        }
+        # Linhas "Equipped creature ..." reais, para garantir essa habilidade
+        # nos Equipamentos gerados.
+        self.equipped_creature_global: Counter = Counter()
+        self.equipped_creature_por_cor: Dict[str, Counter] = {
             cor: Counter() for cor in CORES_VALIDAS
         }
 
@@ -383,6 +407,10 @@ class ModeloSubtipos:
                     self.custos_equip_global[custo] += 1
                     for cor in cores_carta:
                         self.custos_equip_por_cor[cor][custo] += 1
+                for linha in _extrair_equipped_creature(reg["oracle_text"]):
+                    self.equipped_creature_global[linha] += 1
+                    for cor in cores_carta:
+                        self.equipped_creature_por_cor[cor][linha] += 1
 
         # 5) Ordem média.
         for tipo in TIPOS_VALIDOS:
@@ -550,6 +578,27 @@ class ModeloSubtipos:
             list(compativeis.keys()),
             weights=list(compativeis.values()),
             k=1,
+        )[0]
+
+    def sortear_equipped_creature(
+        self,
+        cor: str,
+        peso_cor: float = 0.7,
+        rng: Optional[random.Random] = None,
+    ) -> str:
+        """Sorteia uma linha real "Equipped creature ..." para um
+        Equipamento, misturando a cor da carta com o global. Cai num texto
+        genérico se o corpus não tiver nenhuma amostra."""
+        rng = rng or random.Random()
+        dist = _misturar(
+            self.equipped_creature_por_cor.get(cor, Counter()),
+            self.equipped_creature_global,
+            peso_cor,
+        )
+        if not dist:
+            return "Equipped creature gets +1/+1."
+        return rng.choices(
+            list(dist.keys()), weights=list(dist.values()), k=1
         )[0]
 
     @staticmethod
