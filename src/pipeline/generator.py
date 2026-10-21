@@ -42,7 +42,7 @@ from typing import Dict, List, Optional
 from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
-from .regras_tipo import ajustar_subtipos_por_texto, aplicar_regras_texto
+from .regras_tipo import TEXTO_VAZIO, ajustar_subtipos_por_texto, aplicar_regras_texto
 from .subtipos import ModeloSubtipos
 from .texto_markov import PESOS_NGRAMA_PADRAO, PESO_TRIGRAMA_PADRAO, carregar_modelo
 from .tipo_por_nome import inferir_tipo_por_nome
@@ -313,12 +313,30 @@ def gerar_carta(
     # `PESOS_NGRAMA_PADRAO`; `pesos_ngrama` troca esses pesos e
     # `peso_trigrama` (0..1) é o atalho legado que interpola só trigrama e
     # bigrama (ver pipeline.texto_markov).
+    #
+    # Saga: o número de parágrafos É o número de capítulos, sorteado da
+    # distribuição real das Sagas (independente do slider de parágrafos).
+    n_paragrafos_efetivo = n_paragrafos
+    if "Saga" in subtipos:
+        n_paragrafos_efetivo = modelo_subtipos.sortear_capitulos_saga(
+            cor_abrev, peso_cor, rng
+        )
+
     pesos_usados = _resolver_pesos_ngrama(peso_trigrama, pesos_ngrama)
     resultado = modelo.gerar_texto(
         cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome,
-        pesos_ngrama=pesos_usados, n_paragrafos=n_paragrafos,
+        pesos_ngrama=pesos_usados, n_paragrafos=n_paragrafos_efetivo,
     )
     texto_regras = resultado["texto"]
+    palavras_chave = resultado["palavras_chave"]
+
+    if "Saga" in subtipos:
+        # Uma Saga não tem uma linha de keywords solta: cada parágrafo é um
+        # capítulo ("I — ...", "II — ..."). Se o modelo gerou keywords,
+        # elas viram o capítulo I e desalinham a contagem -- então
+        # descartamos a linha solta e mantemos só os parágrafos.
+        palavras_chave = []
+        texto_regras = resultado["corpo"] or TEXTO_VAZIO
 
     # Etapa 4: regras de texto do tipo/subtipo. Se o texto já tiver
     # "Enchant ..."/"Equip ...", o subtipo correspondente é garantido;
@@ -348,6 +366,12 @@ def gerar_carta(
         poder, resistencia = modelos_estruturais.prever_poder_resistencia(
             texto_regras, cor_abrev, cmc_previsto
         )
+    elif "Vehicle" in subtipos:
+        # Veículos também têm P/T, mas não passam pela regressão (treinada
+        # só em criaturas). O valor é sorteado dos Veículos reais.
+        pt = modelo_subtipos.sortear_pt_veiculo(cor_abrev, peso_cor, rng)
+        if pt is not None:
+            poder, resistencia = pt
 
     imagem = _imagem_placeholder(
         nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
@@ -368,7 +392,7 @@ def gerar_carta(
         peso_trigrama=peso_trigrama,
         pesos_ngrama=pesos_usados,
         semente_usada=resultado["semente"] or "",
-        palavras_chave=resultado["palavras_chave"],
+        palavras_chave=palavras_chave,
         n_paragrafos=resultado.get("n_paragrafos", 0),
         tipo_origem=tipo_origem,
         tipo_motivo=tipo_motivo,

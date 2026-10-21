@@ -102,6 +102,12 @@ MAX_SUBTIPOS = {
     "sorcery": 1,
 }
 
+# Subtipos que, quando sorteados, "fecham" o type_line: eles nunca aparecem
+# junto de outro subtipo em cartas reais (ex.: uma Saga não é uma Aura --
+# "Enchantment — Saga Aura" não existe). Se o primeiro subtipo sorteado for
+# um destes, a quantidade cai para 1.
+SUBTIPOS_SOLITARIOS = {"Saga"}
+
 # Subtipos oficiais com espaço. Protegidos antes de dividir o type_line.
 SUBTIPOS_MULTIPALAVRA = ("Time Lord", "Infinity Stone")
 
@@ -230,6 +236,46 @@ def _extrair_equipped_creature(oracle_text: str) -> List[str]:
     return linhas
 
 
+# Linha "Crew N" (habilitar um Veículo: vira criatura até o fim do turno).
+# Quase todo Veículo real (96% do corpus) tem uma, com N entre 1 e 8.
+_PADRAO_CREW = re.compile(r"(?im)\bCrew\s+(\d+)")
+
+
+def _extrair_custos_crew(oracle_text: str) -> List[str]:
+    """Extrai os valores de "Crew N" de um Veículo real (devolve ["2"], ...)."""
+    return _PADRAO_CREW.findall(str(oracle_text or ""))
+
+
+def _cor_para_veiculo(colors) -> str:
+    """Reduz a lista de cores de um Veículo a uma chave (para condicionar o
+    P/T por cor): "" (incolor) ou a cor única; multicolor vira a primeira
+    cor em ordem WUBRG (Veículos são quase sempre incolores ou de uma cor)."""
+    try:
+        presentes = [c for c in CORES_VALIDAS if c in colors]
+    except TypeError:
+        return ""
+    return presentes[0] if presentes else ""
+
+
+# Linha de capítulo de Saga: começa com numeral romano ("I — ...",
+# "II — ...") ou uma lista deles ("I, II, III — ..."). Ver regras_tipo para
+# como as Sagas geradas recebem capítulos numerados.
+_PADRAO_CAPITULO_SAGA = re.compile(
+    r"(?i)^(?:I{1,3}|IV|V|VI{0,3}|IX|X{1,3})(?:\s*,\s*(?:I{1,3}|IV|V|VI{0,3}|IX|X{1,3}))*\s*(?:[—\-–]\s*|\s+)"
+)
+
+
+def _contar_capitulos_saga(oracle_text: str) -> int:
+    """Conta quantas linhas de capítulo (numeral romano inicial) uma Saga
+    real tem. Reminder text entre parênteses é ignorado."""
+    n = 0
+    for linha in str(oracle_text or "").split("\n"):
+        linha = re.sub(r"\([^)]*\)", "", linha).strip()
+        if _PADRAO_CAPITULO_SAGA.match(linha):
+            n += 1
+    return n
+
+
 def _custo_equip_compativel(custo: str, cor: str) -> bool:
     """Aceita custos genéricos e custos coloridos só com a cor da carta
     (evita um Equipamento vermelho com "Equip {2}{G}", por exemplo)."""
@@ -300,6 +346,23 @@ class ModeloSubtipos:
         self.equipped_creature_por_cor: Dict[str, Counter] = {
             cor: Counter() for cor in CORES_VALIDAS
         }
+        # Custo de "Crew N" de Veículos reais (a habilidade que torna o
+        # Veículo uma criatura). Garantida nos Veículos gerados.
+        self.crew_global: Counter = Counter()
+        self.crew_por_cor: Dict[str, Counter] = {
+            cor: Counter() for cor in CORES_VALIDAS
+        }
+        # Poder/resistência de Veículos reais (eles NÃO passam pelo modelo de
+        # regressão de P/T, que é treinado só em criaturas). Chave: "" para
+        # incolor, ou a cor única. Valor: Counter de (poder, resistencia).
+        self.pt_veiculo_por_cor: Dict[str, Counter] = {}
+        self.pt_veiculo_global: Counter = Counter()
+        # Quantos capítulos uma Saga real tem (1, 2, 3...), para sortear a
+        # quantidade de parágrafos numerados de uma Saga gerada.
+        self.capitulos_saga_global: Counter = Counter()
+        self.capitulos_saga_por_cor: Dict[str, Counter] = {
+            cor: Counter() for cor in CORES_VALIDAS
+        }
 
         # Pools finais (sem contaminação entre criatura/artefato etc.).
         self.pools: Dict[str, List[str]] = {}
@@ -324,6 +387,8 @@ class ModeloSubtipos:
                     "colors": carta.get("colors"),
                     "color_identity": carta.get("color_identity"),
                     "oracle_text": carta.get("oracle_text", ""),
+                    "power": carta.get("power"),
+                    "toughness": carta.get("toughness"),
                 }
             )
 
@@ -412,6 +477,32 @@ class ModeloSubtipos:
                     for cor in cores_carta:
                         self.equipped_creature_por_cor[cor][linha] += 1
 
+            if tipo == "enchantment" and "Saga" in subtipos:
+                n_caps = _contar_capitulos_saga(reg["oracle_text"])
+                if n_caps > 0:
+                    self.capitulos_saga_global[n_caps] += 1
+                    for cor in cores_carta:
+                        self.capitulos_saga_por_cor[cor][n_caps] += 1
+
+            if tipo == "artifact" and "Vehicle" in subtipos:
+                # Custo de Crew (habilidade obrigatória do Veículo gerado).
+                for valor in _extrair_custos_crew(reg["oracle_text"]):
+                    self.crew_global[valor] += 1
+                    for cor in cores_carta:
+                        self.crew_por_cor[cor][valor] += 1
+
+                # P/T de Veículo (não passa pela regressão, treinada só em
+                # criaturas -- ver pipeline.estrutura).
+                poder, resistencia = reg["power"], reg["toughness"]
+                if (
+                    str(poder).isdigit()
+                    and str(resistencia).isdigit()
+                ):
+                    chave = _cor_para_veiculo(reg["colors"])
+                    pt = (int(poder), int(resistencia))
+                    self.pt_veiculo_global[pt] += 1
+                    self.pt_veiculo_por_cor.setdefault(chave, Counter())[pt] += 1
+
         # 5) Ordem média.
         for tipo in TIPOS_VALIDOS:
             self.ordem_media[tipo] = {
@@ -494,6 +585,8 @@ class ModeloSubtipos:
                     {s: w for s, w in dist_sub.items() if s in pool}
                 )
             else:
+                # A partir do 2º subtipo, nunca sorteamos um "solitarário"
+                # (ex.: Saga): ele não combina com outro subtipo.
                 ultimo = escolhidos[-1]
                 dist = Counter(
                     {
@@ -502,6 +595,7 @@ class ModeloSubtipos:
                             tipo, cor, ultimo, peso_cor
                         ).items()
                         if s in pool and s not in escolhidos
+                        and s not in SUBTIPOS_SOLITARIOS
                     }
                 )
                 if not dist:
@@ -509,14 +603,19 @@ class ModeloSubtipos:
                         {
                             s: w
                             for s, w in dist_sub.items()
-                            if s not in escolhidos
+                            if s not in escolhidos and s not in SUBTIPOS_SOLITARIOS
                         }
                     )
 
             if not dist:
                 # Último fallback: qualquer subtipo do pool ainda não
-                # escolhido, com peso igual.
-                restantes = [s for s in pool if s not in escolhidos]
+                # escolhido (menos os solitários, que não se combinam),
+                # com peso igual.
+                restantes = [
+                    s
+                    for s in pool
+                    if s not in escolhidos and s not in SUBTIPOS_SOLITARIOS
+                ]
                 if not restantes:
                     break
                 dist = Counter({s: 1.0 for s in restantes})
@@ -525,6 +624,11 @@ class ModeloSubtipos:
                 list(dist.keys()), weights=list(dist.values()), k=1
             )[0]
             escolhidos.append(escolhido)
+
+            # Subtipo "solitarário" (ex.: Saga) fecha o type_line: não
+            # combina com mais nada, então paramos de sortear.
+            if escolhido in SUBTIPOS_SOLITARIOS:
+                break
 
         # Coerência de terrenos: se há tipo(s) básico(s), pelo menos um deve
         # produzir a cor escolhida pelo usuário. Ex.: um terreno verde não
@@ -599,6 +703,72 @@ class ModeloSubtipos:
             return "Equipped creature gets +1/+1."
         return rng.choices(
             list(dist.keys()), weights=list(dist.values()), k=1
+        )[0]
+
+    def sortear_crew(
+        self,
+        cor: str,
+        peso_cor: float = 0.7,
+        rng: Optional[random.Random] = None,
+    ) -> str:
+        """Sorteia o valor de "Crew N" para um Veículo, misturando a cor da
+        carta com o global. Usa a distribuição real (2 e 3 são os mais
+        comuns). Cai em "2" se o corpus não tiver nenhuma amostra."""
+        rng = rng or random.Random()
+        dist = _misturar(
+            self.crew_por_cor.get(cor, Counter()),
+            self.crew_global,
+            peso_cor,
+        )
+        if not dist:
+            return "2"
+        return rng.choices(
+            list(dist.keys()), weights=list(dist.values()), k=1
+        )[0]
+
+    def sortear_pt_veiculo(
+        self,
+        cor: str,
+        peso_cor: float = 0.7,
+        rng: Optional[random.Random] = None,
+    ) -> Optional[tuple]:
+        """Sorteia (poder, resistência) de um Veículo a partir dos Veículos
+        reais. Veículos não passam pela regressão de P/T (treinada só em
+        criaturas), então o P/T vem direto do corpus. Mistura a cor da carta
+        com o global; devolve None se não houver dados."""
+        rng = rng or random.Random()
+        dist = _misturar(
+            self.pt_veiculo_por_cor.get(cor, Counter()),
+            self.pt_veiculo_global,
+            peso_cor,
+        )
+        if not dist:
+            return None
+        return rng.choices(
+            list(dist.keys()), weights=list(dist.values()), k=1
+        )[0]
+
+    def sortear_capitulos_saga(
+        self,
+        cor: str,
+        peso_cor: float = 0.7,
+        rng: Optional[random.Random] = None,
+        minimo: int = 1,
+        maximo: int = 5,
+    ) -> int:
+        """Sorteia quantos capítulos uma Saga terá, usando a distribuição
+        real (2 e 3 são os mais comuns). Preso a [minimo, maximo]."""
+        rng = rng or random.Random()
+        dist = _misturar(
+            self.capitulos_saga_por_cor.get(cor, Counter()),
+            self.capitulos_saga_global,
+            peso_cor,
+        )
+        validos = {n: f for n, f in dist.items() if minimo <= n <= maximo and f > 0}
+        if not validos:
+            return minimo
+        return rng.choices(
+            list(validos.keys()), weights=list(validos.values()), k=1
         )[0]
 
     @staticmethod

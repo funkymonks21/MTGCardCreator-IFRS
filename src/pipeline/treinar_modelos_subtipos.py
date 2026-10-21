@@ -82,6 +82,9 @@ def main():
     print("\nRegras de texto:")
     print(f"  alvos de Enchant: {modelo.alvos_enchant_global.most_common(8)}")
     print(f"  custos de Equip: {modelo.custos_equip_global.most_common(8)}")
+    print(f"  linhas 'Equipped creature': {len(modelo.equipped_creature_global)} distintas")
+    print(f"  custos de Crew: {modelo.crew_global.most_common(8)}")
+    print(f"  P/T de Veículos: {modelo.pt_veiculo_global.most_common(8)}")
 
 
 if __name__ == "__main__":

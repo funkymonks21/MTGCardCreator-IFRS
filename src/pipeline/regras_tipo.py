@@ -12,6 +12,12 @@ projeto pediu:
   que comece com "Equipped creature ..." (o que a criatura equipada ganha)
   e uma habilidade "Equip {custo}". Se já existirem, são preservadas; senão,
   são sorteadas dos Equipamentos reais (compatíveis com a cor da carta).
+- Veículo (Artefato — Vehicle): sempre precisa ter uma habilidade
+  "Crew N". Se já existir, é preservada; senão, N é sorteado dos Veículos
+  reais.
+- Saga (Encantamento — Saga): cada parágrafo recebe um capítulo com numeral
+  romano incremental ("I — ...", "II — ..."); a quantidade de capítulos é o
+  número de parágrafos da Saga (sorteado da distribuição real).
 - Terreno: terrenos com tipos básicos (Plains/Island/Swamp/Mountain/Forest)
   ganham a habilidade de mana correspondente; terrenos sem tipo básico
   ganham uma habilidade de mana da cor escolhida se ainda não tiverem
@@ -48,6 +54,13 @@ _RE_EQUIP_VALIDO = re.compile(r"(?i)^equip\s+\{")
 _RE_EQUIPPED = re.compile(r"(?i)\bequipped\b")
 _RE_EQUIP_SELF = re.compile(r"(?i)\bthis equipment\b")
 _RE_EQUIPPED_CREATURE = re.compile(r"(?i)^equipped creature\b")
+_RE_CREW = re.compile(r"(?i)^crew\b")
+# "Crew N" real: o número e nada mais (ou reminder text entre parênteses).
+# Evita casar texto do modelo que só começa com "Crew N ..." por acaso.
+_RE_CREW_VALIDO = re.compile(r"(?i)^crew\s+\d+\s*(\(.*\))?\s*\.?$")
+_RE_CAPITULO_SAGA = re.compile(
+    r"(?i)^(?:I{1,3}|IV|V|VI{0,3}|IX|X{1,3})(?:\s*,\s*(?:I{1,3}|IV|V|VI{0,3}|IX|X{1,3}))*\s*(?:[—\-–]\s*|\s+)"
+)
 _RE_MANA_SIMPLES = re.compile(r"(?i)^\{T\}:\s*Add\b")
 _RE_MANA_QUALQUER = re.compile(r"(?i)^\{T\}[^:\n]*:\s*Add\b")
 
@@ -97,13 +110,15 @@ def ajustar_subtipos_por_texto(
 
     if tipo == "enchantment":
         # Além da linha "Enchant ...", textos com "Enchanted creature/land"
-        # ou "this Aura" também só fazem sentido em Auras.
+        # ou "this Aura" também só fazem sentido em Auras. MAS: uma Saga não
+        # é uma Aura -- se o texto gerado virou Saga, não adicionamos Aura
+        # (senão sairia "Enchantment — Saga Aura", que não existe).
         tem_enchant = (
             any(_RE_ENCHANT.match(linha) for linha in linhas)
             or bool(_RE_ENCHANTED.search(texto_bruto))
             or bool(_RE_AURA_SELF.search(texto_bruto))
         )
-        if tem_enchant and "Aura" not in subtipos:
+        if tem_enchant and "Aura" not in subtipos and "Saga" not in subtipos:
             if len(subtipos) < MAX_SUBTIPOS["enchantment"]:
                 subtipos.append("Aura")
             elif subtipos:
@@ -196,6 +211,42 @@ def garantir_equip(
     return _juntar(linhas)
 
 
+def garantir_crew(
+    texto: str,
+    subtipos: List[str],
+    cor: str,
+    peso_cor: float,
+    modelo: "ModeloSubtipos",
+    rng: random.Random,
+) -> str:
+    """Garante uma única habilidade "Crew N" em Veículos.
+
+    Todo Veículo real tem uma habilidade "Crew N" que o transforma em
+    criatura até o fim do turno. Se o texto gerado já tiver uma, ela é
+    preservada (normalizada); senão, um valor N é sorteado dos Veículos
+    reais. A linha fica no fim, como no Magic real.
+    """
+    if "Vehicle" not in subtipos:
+        return texto
+
+    linhas = _linhas(texto)
+    validas = [i for i, linha in enumerate(linhas) if _RE_CREW_VALIDO.match(linha)]
+
+    if validas:
+        indice = validas[0]
+        linhas = [
+            linha
+            for i, linha in enumerate(linhas)
+            if i == indice or not _RE_CREW.match(linha)
+        ]
+        return _juntar(linhas)
+
+    linhas = [linha for linha in linhas if not _RE_CREW.match(linha)]
+    valor = modelo.sortear_crew(cor, peso_cor, rng)
+    linhas.append(f"Crew {valor}")
+    return _juntar(linhas)
+
+
 def garantir_equipped_creature(
     texto: str,
     subtipos: List[str],
@@ -269,6 +320,67 @@ def garantir_habilidade_mana(
     return _juntar(linhas)
 
 
+def _romano(n: int) -> str:
+    """Converte 1..N para numeral romano maiúsculo (1->I, 2->II, 4->IV...)."""
+    valores = [
+        (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+    ]
+    resultado = []
+    for valor, simbolo in valores:
+        while n >= valor:
+            resultado.append(simbolo)
+            n -= valor
+    return "".join(resultado) or "I"
+
+
+def garantir_capitulos_saga(
+    texto: str,
+    subtipos: List[str],
+    cor: str,
+    peso_cor: float,
+    modelo: "ModeloSubtipos",
+    rng: random.Random,
+) -> str:
+    """Garante capítulos numerados em uma Saga.
+
+    Uma Saga real é contada por capítulos, cada um prefixado por numeral
+    romano incremental ("I — ...", "II — ..."). A quantidade de capítulos já
+    foi decidida antes da geração (é o `n_paragrafos` da Saga, sorteado da
+    distribuição real -- ver `generator.gerar_carta`); aqui CADA parágrafo
+    gerado se torna um capítulo, com o numeral romano correspondente.
+
+    O modelo de Markov às vezes já emite um prefixo de numeral romano (ele
+    aprendeu o formato das Sagas reais), então esse prefixo é removido antes
+    de renumerar, para não sair "I — I — ...".
+    """
+    if "Saga" not in subtipos:
+        return texto
+
+    linhas = _linhas(texto)
+    # Remove qualquer prefixo de numeral romano que o modelo tenha gerado.
+    def _sem_prefixo(ln: str) -> str:
+        return _RE_CAPITULO_SAGA.sub("", ln, count=1).strip()
+
+    # O modelo às vezes emite um "\n" no meio de um parágrafo (aprendeu o
+    # formato de capítulos reais). Colapsa espaços/quebras para garantir que
+    # cada PARÁGRAFO vire exatamente UM capítulo.
+    conteudos = []
+    for ln in linhas:
+        parte = " ".join(_sem_prefixo(ln).split())
+        if parte:
+            conteudos.append(parte)
+
+    if not conteudos:
+        # Sem parágrafos aproveitáveis: usa um placeholder curto em vez de
+        # uma saga sem capítulo nenhum.
+        conteudos = ["(capítulo sem texto)"]
+
+    novas = [
+        f"{_romano(i + 1)} \u2014 {conteudo}" for i, conteudo in enumerate(conteudos)
+    ]
+    return _juntar(novas)
+
+
 def aplicar_regras_texto(
     texto: str,
     tipo: str,
@@ -278,14 +390,16 @@ def aplicar_regras_texto(
     modelo: "ModeloSubtipos",
     rng: random.Random,
 ) -> str:
-    """Aplica o lint de texto específico do tipo (Aura/Equipamento/Terreno)."""
+    """Aplica o lint de texto específico do tipo (Aura/Saga/Equipamento/Veículo/Terreno)."""
     if tipo == "enchantment":
-        return garantir_enchant(texto, subtipos, cor, peso_cor, modelo, rng)
+        texto = garantir_enchant(texto, subtipos, cor, peso_cor, modelo, rng)
+        return garantir_capitulos_saga(texto, subtipos, cor, peso_cor, modelo, rng)
     if tipo == "artifact":
         texto = garantir_equipped_creature(
             texto, subtipos, cor, peso_cor, modelo, rng
         )
-        return garantir_equip(texto, subtipos, cor, modelo, rng)
+        texto = garantir_equip(texto, subtipos, cor, modelo, rng)
+        return garantir_crew(texto, subtipos, cor, peso_cor, modelo, rng)
     if tipo == "land":
         return garantir_habilidade_mana(texto, subtipos, cor)
     return texto

@@ -25,12 +25,26 @@ subtipos de criatura, artefatos 0–1 subtipo de artefato, terrenos 0–2
 subtipos de terreno, encantamentos 0–2, e instantâneas/feitiços 0–1.
 Auras sempre ganham uma linha `Enchant ...`; Equipamentos sempre ganham uma
 linha `Equipped creature ...` (o que a criatura equipada recebe) e a linha
-`Equip ...` (o custo de equipar); e terrenos com tipo básico (Plains, Island,
+`Equip ...` (o custo de equipar); **Veículos** sempre ganham `Crew N` (N
+sorteado dos Veículos reais) **e** poder/resistência; **Sagas** têm cada
+parágrafo transformado num capítulo com numeral romano incremental (`I — ...`,
+`II — ...`), com a quantidade de capítulos sorteada da distribuição real das
+Sagas (2 e 3 são os mais comuns); e terrenos com tipo básico (Plains, Island,
 Swamp, Mountain, Forest) ganham a habilidade de mana correspondente. Os
 subtipos ficam em inglês, como no `type_line` original da Scryfall, para
 manter a coerência com o texto Oracle gerado (ex.: `Creature — Human
 Warrior`). Assim como no texto, as distribuições de subtipos são misturadas
 com um modelo global pelo mesmo `peso_cor`.
+
+> **Veículos e P/T:** Veículos (`Artifact — Vehicle`) têm poder/resistência,
+> mas **não** passam pela regressão de P/T (que é treinada só em cartas com
+> `Creature` no type_line). O P/T do Veículo é sorteado direto dos Veículos
+> reais do corpus.
+>
+> **Sagas:** o modelo de Markov às vezes já emite um numeral romano no início
+> de um parágrafo (aprendeu o formato real das Sagas); o lint remove esse
+> prefixo antes de renumerar, e a linha solta de keywords é descartada para
+> não virar um capítulo.
 
 A **quantidade de parágrafos** de habilidade e a **quantidade de keywords**
 de cada carta também vêm dos dados: o número de parágrafos é sorteado da
@@ -108,7 +122,7 @@ MTGCardCreator-IFRS/
 ├── models/
 │   ├── modelo_markov.pkl          # cadeia de Markov por tipo e cor, já treinada (versionado no git)
 │   ├── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
-│   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip/Equipped (versionado no git)
+│   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip/Equipped/Crew/Saga (versionado no git)
 ├── notebooks/
 │   └── demo.ipynb              # interface do projeto: roda no Colab, chama o pipeline
 ├── src/
@@ -122,7 +136,7 @@ MTGCardCreator-IFRS/
 │       ├── treinar_modelo_markov.py    # script de treino -> gera models/modelo_markov.pkl
 │       ├── subtipos.py                 # modelo estatístico de subtipos (quantidade, nomes, co-ocorrência)
 │       ├── treinar_modelos_subtipos.py # script de treino -> gera models/modelos_subtipos.pkl
-│       ├── regras_tipo.py              # Enchant (Aura), Equipped creature + Equip (Equipamento) e mana de terrenos
+│       ├── regras_tipo.py              # Enchant (Aura), Equipped creature + Equip (Equipamento), Crew (Veículo), Saga (capítulos) e mana de terrenos
 │       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
 │       ├── treinar_modelos_estruturais.py  # script de treino -> models/modelos_estruturais.pkl
 │       ├── mecanicas.py                # [não usado na geração] inferência de mecânica, usado só como semente opcional
@@ -238,7 +252,8 @@ O segundo estima as distribuições de subtipos diretamente do corpus
 (`src/pipeline/subtipos.py`): quantidade por tipo (com os limites do
 projeto), frequência de cada subtipo por tipo e cor, co-ocorrência entre
 subtipos (para combos como "Human Warrior"), alvos de `Enchant ...`, custos de
-`Equip ...` e linhas `Equipped creature ...`. O resultado vai para
+`Equip ...`, linhas `Equipped creature ...`, custos de `Crew N`, P/T de
+Veículos e número de capítulos de Sagas. O resultado vai para
 `models/modelos_subtipos.pkl`. Artefatos e criaturas têm pools separados:
 um `Artifact Creature` usa subtipos de criatura, e o pool de artefato
 remove qualquer nome que também seja tipo de criatura (ex.: `Wizard`).
@@ -322,7 +337,8 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] Ajuste do peso cor/global para **artefatos incolores** (a maioria do
       corpus), dando mais voz ao modelo global — `AJUSTE_PESO_COR_POR_TIPO`
 - [x] Regras de Aura (`Enchant ...`), Equipamento (`Equipped creature ...` +
-      `Equip ...`) e habilidade de mana de terrenos com tipo básico
+      `Equip ...`), Veículo (`Crew N` + P/T) e Saga (capítulos numerados em
+      romano), além da habilidade de mana de terrenos com tipo básico
       — `src/pipeline/regras_tipo.py`
 - [x] Inferência do tipo pelo nome (POS tagging + WordNet) com fallback
       para sorteio em caso de empate/sem pista — `src/pipeline/tipo_por_nome.py`
