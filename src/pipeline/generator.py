@@ -37,14 +37,14 @@ no relatório do projeto.
 import random
 import unicodedata
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
 from .regras_tipo import ajustar_subtipos_por_texto, aplicar_regras_texto
 from .subtipos import ModeloSubtipos
-from .texto_markov import PESO_TRIGRAMA_PADRAO, carregar_modelo
+from .texto_markov import PESOS_NGRAMA_PADRAO, PESO_TRIGRAMA_PADRAO, carregar_modelo
 from .tipo_por_nome import inferir_tipo_por_nome
 from .tipos import TIPOS_COM_PODER_RESISTENCIA, TIPOS_DISPLAY, TIPOS_VALIDOS
 
@@ -67,6 +67,13 @@ PESO_COR_PADRAO = 0.7
 # pipeline.texto_markov, onde está definido). Valores perto de 1 deixam o
 # texto mais coerente (segue sequências reais de três palavras do corpus);
 # perto de 0, mais solto. Reexportado aqui para o notebook/app poder usar.
+# Hoje é só um atalho de compatibilidade: o padrão do pipeline passou a ser
+# `PESOS_NGRAMA_PADRAO` (que também usa tetragrama e pentagrama).
+#
+# `PESOS_NGRAMA_PADRAO` (importado de pipeline.texto_markov) são os pesos
+# por ORDEM de n-grama (unigrama..pentagrama) usados quando nem
+# `peso_trigrama` nem `pesos_ngrama` são passados. Ex.:
+# {4: 0.35, 3: 0.30, 2: 0.20, 1: 0.10, 0: 0.05}.
 
 # Opções de tipo expostas para a interface.
 #
@@ -145,7 +152,10 @@ class Carta:
     resistencia: Optional[int] = None
     # Campos de transparência: mostram COMO o sistema chegou no resultado.
     peso_cor: float = 0.0
-    peso_trigrama: float = 0.0
+    peso_trigrama: Optional[float] = None
+    # Pesos por ordem de n-grama usados de fato na geração do texto
+    # (ver pipeline.texto_markov.PESOS_NGRAMA_PADRAO).
+    pesos_ngrama: Dict[int, float] = field(default_factory=dict)
     semente_usada: str = ""
     palavras_chave: List[str] = field(default_factory=list)
     # Como o tipo foi decidido: "escolhido", "nome" (inferência) ou
@@ -188,17 +198,35 @@ def _resolver_tipo(tipo: Optional[str]) -> str:
     raise ValueError(f"Tipo inválido: {tipo!r}. Use um de: {opcoes}.")
 
 
+def _resolver_pesos_ngrama(
+    peso_trigrama: Optional[float], pesos_ngrama: Optional[Dict[int, float]]
+) -> Dict[int, float]:
+    """Resolve os pesos por ordem de n-grama a usar na geração, a partir do
+    que o usuário passou:
+
+    - `pesos_ngrama` explícito tem prioridade;
+    - senão, `peso_trigrama` (0..1, atalho legado) vira a mistura de duas
+      ordens {2: peso_trigrama, 1: 1 - peso_trigrama};
+    - senão, usa o padrão `PESOS_NGRAMA_PADRAO` (todas as ordens)."""
+    if pesos_ngrama is not None:
+        return dict(pesos_ngrama)
+    if peso_trigrama is not None:
+        return {2: float(peso_trigrama), 1: 1.0 - float(peso_trigrama)}
+    return dict(PESOS_NGRAMA_PADRAO)
+
+
 def gerar_carta(
     nome: str,
     cor: str,
     peso_cor: float = PESO_COR_PADRAO,
     tipo: Optional[str] = None,
-    peso_trigrama: float = PESO_TRIGRAMA_PADRAO,
+    peso_trigrama: Optional[float] = None,
+    pesos_ngrama: Optional[Dict[int, float]] = None,
 ) -> Carta:
     """Ponto de entrada único do pipeline.
 
-    Recebe o nome, a cor e (opcionalmente) o tipo, o peso da cor e o peso
-    dos trigramas na geração, e devolve um objeto `Carta` pronto para ser
+    Recebe o nome, a cor e (opcionalmente) o tipo, o peso da cor e os pesos
+    dos n-gramas na geração, e devolve um objeto `Carta` pronto para ser
     exibido.
 
     Se `tipo` for None/vazio/"Automático", o pipeline tenta inferir o tipo
@@ -216,9 +244,10 @@ def gerar_carta(
         3. [FEITO] gera as HABILIDADES com a cadeia de Markov treinada só
            naquele tipo (bigramas/trigramas por tipo e cor) -- ver
            pipeline.texto_markov. Instants/sorceries não têm habilidades
-           ativadas. O parâmetro `peso_trigrama` (0..1) controla o quanto
-           os trigramas pesam sobre os bigramas: mais alto = texto mais
-           coerente;
+           ativadas. A próxima palavra combina várias ordens de n-grama
+           (unigrama, bigrama, trigrama, tetragrama e pentagrama) com pesos
+           por ordem: por padrão `PESOS_NGRAMA_PADRAO`, ajustável via
+           `pesos_ngrama` ou pelo atalho legado `peso_trigrama`;
         4. [FEITO] aplica as regras de texto do tipo/subtipo: Aura sempre
            tem "Enchant ...", Equipamento sempre tem "Equip ...", terreno
            com tipo básico ganha a habilidade de mana correspondente --
@@ -271,12 +300,16 @@ def gerar_carta(
     modelo_subtipos = _obter_modelos_subtipos()
     subtipos = modelo_subtipos.sortear(tipo_chave, cor_abrev, peso_cor, rng)
 
-    # Etapa 3: habilidades condicionadas ao tipo escolhido. `peso_trigrama`
-    # (0..1) controla o peso dos trigramas sobre os bigramas: perto de 1 o
-    # texto segue sequências reais de três palavras (mais coerente), perto
-    # de 0 fica mais solto (ver pipeline.texto_markov).
+    # Etapa 3: habilidades condicionadas ao tipo escolhido. A próxima
+    # palavra é escolhida combinando várias ordens de n-grama (unigrama,
+    # bigrama, trigrama, tetragrama e pentagrama). Por padrão usa
+    # `PESOS_NGRAMA_PADRAO`; `pesos_ngrama` troca esses pesos e
+    # `peso_trigrama` (0..1) é o atalho legado que interpola só trigrama e
+    # bigrama (ver pipeline.texto_markov).
+    pesos_usados = _resolver_pesos_ngrama(peso_trigrama, pesos_ngrama)
     resultado = modelo.gerar_texto(
-        cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome, peso_trigrama=peso_trigrama
+        cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome,
+        pesos_ngrama=pesos_usados,
     )
     texto_regras = resultado["texto"]
 
@@ -326,6 +359,7 @@ def gerar_carta(
         resistencia=resistencia,
         peso_cor=peso_cor,
         peso_trigrama=peso_trigrama,
+        pesos_ngrama=pesos_usados,
         semente_usada=resultado["semente"] or "",
         palavras_chave=resultado["palavras_chave"],
         tipo_origem=tipo_origem,

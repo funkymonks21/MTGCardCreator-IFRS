@@ -28,17 +28,20 @@ completo. É o "dial" que o projeto pediu para controlar o peso da cor.
 A mesma mistura (função `_misturar`) também é usada para sortear as
 keywords da carta -- ver abaixo.
 
-Além disso, trigrama e bigrama também são combinados por interpolação
-linear, controlada por `peso_trigrama` (função `_interpolar`):
+Além disso, várias ORDENS de n-grama (unigrama, bigrama, trigrama,
+tetragrama e pentagrama) são combinadas por interpolação linear ponderada
+(função `_combinar_ordens`), com pesos por ordem configuraveis
+(`PESOS_NGRAMA_PADRAO` / parametro `pesos_ngrama`):
 
-    prob(palavra) = peso_trigrama * prob_trigrama(palavra)
-                  + (1 - peso_trigrama) * prob_bigrama(palavra)
+    prob(palavra) = soma_ordem  peso_ordem * prob_ordem(palavra)
 
-`peso_trigrama` perto de 1 => o texto segue sequências reais de três
-palavras do corpus (mais coerente, menos "sem sentido"). Perto de 0 =>
-o bigrama domina e o texto fica mais solto/variado. Quando o contexto
-não tem trigrama, o peso vai todo para o bigrama; sem bigrama, cai no
-unigrama -- `peso_trigrama` nunca esvazia a distribuição.
+Ordens com contexto mais longo (pentagrama/tetragrama) deixam o texto mais
+coerente (segue sequencias reais do corpus); ordens curtas dao mais
+variedade. Só entram na mistura as ordens que TEM dados para o contexto
+atual, e os pesos são normalizados entre elas -- então o pentagrama é usado
+quando existe, mas a previsão nunca fica vazia (cai sempre no unigrama em
+último caso). O parâmetro `peso_trigrama` (0..1) é um atalho legado que
+interpola SÓ trigrama e bigrama.
 
 Três correções importantes feitas após os primeiros testes
 ===========================================================
@@ -159,12 +162,32 @@ TOKEN_AUTORREFERENCIA = "~"
 
 CORES_VALIDAS = ["W", "U", "B", "R", "G"]
 
-# Peso padrão dos TRIGRAMAS sobre os BIGRAMAS na escolha da próxima
-# palavra (interpolação linear, ver `_interpolar`). 1.0 = só trigrama
-# (comportamento mais coerente, sequências reais de três palavras);
-# 0.0 = só bigrama (mais variado/solto). O valor padrão favorece a
-# coerência sem abrir mão totalmente do bigrama como reforço.
+# Peso padrão do atalho legado `peso_trigrama` (interpolação de DUAS ordens:
+# trigrama vs bigrama). 1.0 = só trigrama (mais coerente); 0.0 = só bigrama
+# (mais variado). Mantido só para compatibilidade -- o caminho padrão do
+# pipeline é `PESOS_NGRAMA_PADRAO`, que usa todas as ordens (ver abaixo).
 PESO_TRIGRAMA_PADRAO = 0.85
+
+# Pesos padrão de cada ORDEM de n-grama na geração do texto de habilidade
+# (sugestão do professor: incluir tetragrama e pentagrama, não só bigrama/
+# trigrama). A chave é o tamanho do CONTEXTO usado para prever a próxima
+# palavra: 1 = bigrama (olha 1 palavra atrás), 2 = trigrama, 3 = tetragrama,
+# 4 = pentagrama; a ordem 0 (chave 0) é o unigrama, o "chão" do modelo.
+#
+# Como funciona: no passo de geração, cada ordem que TENHA dados para o
+# contexto atual entra na mistura com o seu peso; contextualizações mais
+# longas (pentagrama/tetragrama) tendem a ser mais raras, então os pesos
+# decrescem para dar mais massa às ordens curtas -- mas ainda usam o
+# contexto longo quando ele existe, o que deixa o texto mais coerente.
+# Os pesos NÃO precisam somar 1: eles são normalizados entre as ordens
+# disponíveis naquele passo (ver `_combinar_ordens`).
+PESOS_NGRAMA_PADRAO = {
+    4: 0.35,  # pentagrama (contexto de 4 palavras)
+    3: 0.30,  # tetragrama (contexto de 3 palavras)
+    2: 0.20,  # trigrama   (contexto de 2 palavras)
+    1: 0.10,  # bigrama    (contexto de 1 palavra)
+    0: 0.05,  # unigrama   (sem contexto)
+}
 
 # Keywords conhecidas (lado esquerdo = como aparecem em minúsculo no
 # oracle_text; lado direito = como devem aparecer no texto final da
@@ -543,25 +566,37 @@ def _misturar(dist_cor: Counter, dist_global: Counter, peso_cor: float) -> Count
     return resultado
 
 
-def _interpolar(dist_a: Counter, dist_b: Counter, peso_a: float) -> Counter:
-    """Interpolação linear entre duas distribuições já normalizadas:
+def _combinar_ordens(
+    dists: Dict[int, Counter], pesos: Dict[int, float]
+) -> Counter:
+    """Combina distribuições condicionais de VÁRIAS ordens de n-grama numa
+    só, ponderadas por `pesos` (chave = ordem do contexto; ver
+    `PESOS_NGRAMA_PADRAO`).
 
-        prob(item) = peso_a * prob_a(item) + (1 - peso_a) * prob_b(item)
+    Só entram na mistura as ordens com distribuição NÃO vazia. Os pesos
+    efetivos são normalizados sobre esse subconjunto, então se, num passo,
+    só houver bigrama e trigrama, a mistura vira a interpolação desses dois
+    -- e se houver todas as ordens, todas contribuem. Isso é o que permite
+    "usar o pentagrama quando ele existe, mas nunca ficar sem previsão"."""
+    disponiveis = {ordem: d for ordem, d in dists.items() if d}
+    if not disponiveis:
+        return Counter()
 
-    Diferente de `_misturar` (que só cai de uma pra outra quando uma está
-    vazia), aqui as duas escalas contribuem sempre, o que deixa controlar
-    o quanto o contexto mais longo "manda" na próxima palavra."""
-    peso_a = min(1.0, max(0.0, peso_a))
-    peso_b = 1.0 - peso_a
+    if len(disponiveis) == 1:
+        return next(iter(disponiveis.values()))
 
-    total_a = sum(dist_a.values()) or 1
-    total_b = sum(dist_b.values()) or 1
+    pesos_ef = {ordem: pesos.get(ordem, 0.0) for ordem in disponiveis}
+    soma = sum(pesos_ef.values())
+    if soma <= 0:  # pesos zerados para essas ordens: cai para pesos iguais
+        pesos_ef = {ordem: 1.0 for ordem in disponiveis}
+        soma = len(disponiveis)
 
     resultado: Counter = Counter()
-    for item, freq in dist_a.items():
-        resultado[item] += peso_a * (freq / total_a)
-    for item, freq in dist_b.items():
-        resultado[item] += peso_b * (freq / total_b)
+    for ordem, dist in disponiveis.items():
+        peso = pesos_ef[ordem] / soma
+        total = sum(dist.values()) or 1
+        for item, freq in dist.items():
+            resultado[item] += peso * (freq / total)
     return resultado
 
 
@@ -625,10 +660,14 @@ class ModeloMarkovPorCor:
         self.permitir_habilidade_ativada = tipo not in TIPOS_SEM_HABILIDADE_ATIVADA
         self.bigramas_por_cor: Dict[str, Dict[str, Counter]] = {}
         self.trigramas_por_cor: Dict[str, Dict[Tuple[str, str], Counter]] = {}
+        self.tetragramas_por_cor: Dict[str, Dict[Tuple[str, ...], Counter]] = {}
+        self.pentagramas_por_cor: Dict[str, Dict[Tuple[str, ...], Counter]] = {}
         self.unigramas_por_cor: Dict[str, Counter] = {}
 
         self.bigramas_global: Dict[str, Counter] = defaultdict(Counter)
         self.trigramas_global: Dict[Tuple[str, str], Counter] = defaultdict(Counter)
+        self.tetragramas_global: Dict[Tuple[str, ...], Counter] = defaultdict(Counter)
+        self.pentagramas_global: Dict[Tuple[str, ...], Counter] = defaultdict(Counter)
         self.unigramas_global: Counter = Counter()
 
         # keywords_por_cor[cor]: Counter{"Flying": 812, "Trample": 340, ...}
@@ -650,6 +689,8 @@ class ModeloMarkovPorCor:
         cartas: pd.DataFrame,
         bigramas: Dict[str, Counter],
         trigramas: Dict[Tuple[str, str], Counter],
+        tetragramas: Dict[Tuple[str, ...], Counter],
+        pentagramas: Dict[Tuple[str, ...], Counter],
         unigramas: Counter,
         keywords: Counter,
         contagem_keywords: Counter,
@@ -699,6 +740,10 @@ class ModeloMarkovPorCor:
                     bigramas[w1][w2] += 1
                 for w1, w2, w3 in nltk.trigrams(tokens):
                     trigramas[(w1, w2)][w3] += 1
+                for w1, w2, w3, w4 in nltk.ngrams(tokens, 4):
+                    tetragramas[(w1, w2, w3)][w4] += 1
+                for w1, w2, w3, w4, w5 in nltk.ngrams(tokens, 5):
+                    pentagramas[(w1, w2, w3, w4)][w5] += 1
 
             contagem_keywords[total_keywords_desta_carta] += 1
 
@@ -714,16 +759,21 @@ class ModeloMarkovPorCor:
 
             bigramas: Dict[str, Counter] = defaultdict(Counter)
             trigramas: Dict[Tuple[str, str], Counter] = defaultdict(Counter)
+            tetragramas: Dict[Tuple[str, ...], Counter] = defaultdict(Counter)
+            pentagramas: Dict[Tuple[str, ...], Counter] = defaultdict(Counter)
             unigramas: Counter = Counter()
             keywords: Counter = Counter()
             contagem_keywords: Counter = Counter()
 
             self._processar_cartas(
-                cartas_da_cor, bigramas, trigramas, unigramas, keywords, contagem_keywords
+                cartas_da_cor, bigramas, trigramas, tetragramas, pentagramas,
+                unigramas, keywords, contagem_keywords
             )
 
             self.bigramas_por_cor[cor] = bigramas
             self.trigramas_por_cor[cor] = trigramas
+            self.tetragramas_por_cor[cor] = tetragramas
+            self.pentagramas_por_cor[cor] = pentagramas
             self.unigramas_por_cor[cor] = unigramas
 
             self.keywords_por_cor[cor] = keywords
@@ -737,6 +787,8 @@ class ModeloMarkovPorCor:
             df_cartas,
             self.bigramas_global,
             self.trigramas_global,
+            self.tetragramas_global,
+            self.pentagramas_global,
             self.unigramas_global,
             self.keywords_global,
             self.contagem_keywords_global,
@@ -744,57 +796,90 @@ class ModeloMarkovPorCor:
 
     # -- geração: texto de habilidade ---------------------------------
 
-    def _distribuicao_proxima_palavra(
-        self, cor: str, contexto: Tuple[str, ...], peso_cor: float, peso_trigrama: float
+    def _distribuicao_ordem(
+        self, cor: str, contexto: Tuple[str, ...], ordem: int, peso_cor: float
     ) -> Counter:
-        """Combina as distribuições condicionais de trigrama, bigrama e
-        (em último caso) unigrama, misturando cada ordem entre o modelo da
-        COR e o modelo GLOBAL ponderados por `peso_cor`.
-
-        `peso_trigrama` (0..1) controla a interpolação linear entre
-        trigrama e bigrama:
-
-            prob = peso_trigrama * prob_trigrama
-                 + (1 - peso_trigrama) * prob_bigrama
-
-        Valores altos de `peso_trigrama` deixam o texto mais coerente
-        (segue sequências de três palavras reais do corpus), valores
-        baixos deixam o texto mais variado/caótico. Quando o contexto não
-        tem trigrama, o peso vai todo para o bigrama; quando não há
-        bigrama, cai no unigrama -- ou seja, `peso_trigrama` nunca deixa
-        a distribuição vazia."""
-        if len(contexto) >= 2:
-            par = tuple(contexto[-2:])
-            dist_tri = _misturar(
-                self.trigramas_por_cor[cor].get(par, Counter()),
-                self.trigramas_global.get(par, Counter()),
-                peso_cor,
-            )
-        else:
-            dist_tri = Counter()
-
-        if contexto:
-            ultima = contexto[-1]
-            dist_bi = _misturar(
-                self.bigramas_por_cor[cor].get(ultima, Counter()),
-                self.bigramas_global.get(ultima, Counter()),
-                peso_cor,
-            )
-        else:
-            dist_bi = Counter()
-
-        if not dist_tri:
-            return dist_bi if dist_bi else _misturar(
+        """Distribuição da próxima palavra condicionada a um contexto de
+        `ordem` palavras (0 = unigrama), já misturando o modelo da COR com o
+        GLOBAL por `peso_cor`. Devolve um Counter vazio quando esse contexto
+        não aparece no corpus."""
+        if ordem <= 0:
+            return _misturar(
                 self.unigramas_por_cor[cor], self.unigramas_global, peso_cor
             )
-        if not dist_bi:
-            return dist_tri
 
-        return _interpolar(dist_tri, dist_bi, peso_trigrama)
+        if len(contexto) < ordem:
+            return Counter()
+
+        chave = tuple(contexto[-ordem:])
+        if ordem == 1:
+            return _misturar(
+                self.bigramas_por_cor[cor].get(chave[-1], Counter()),
+                self.bigramas_global.get(chave[-1], Counter()),
+                peso_cor,
+            )
+        if ordem == 2:
+            return _misturar(
+                self.trigramas_por_cor[cor].get(chave, Counter()),
+                self.trigramas_global.get(chave, Counter()),
+                peso_cor,
+            )
+        if ordem == 3:
+            return _misturar(
+                self.tetragramas_por_cor[cor].get(chave, Counter()),
+                self.tetragramas_global.get(chave, Counter()),
+                peso_cor,
+            )
+        if ordem == 4:
+            return _misturar(
+                self.pentagramas_por_cor[cor].get(chave, Counter()),
+                self.pentagramas_global.get(chave, Counter()),
+                peso_cor,
+            )
+        return Counter()
+
+    def _distribuicao_proxima_palavra(
+        self,
+        cor: str,
+        contexto: Tuple[str, ...],
+        peso_cor: float,
+        peso_trigrama: Optional[float] = None,
+        pesos_ngrama: Optional[Dict[int, float]] = None,
+    ) -> Counter:
+        """Combina as distribuições condicionais de todas as ordens de
+        n-grama disponíveis (unigrama, bigrama, trigrama, tetragrama e
+        pentagrama) para o contexto atual, misturando cada ordem entre o
+        modelo da COR e o GLOBAL por `peso_cor`.
+
+        Dois jeitos de controlar a mistura:
+
+        - `pesos_ngrama` (recomendado): dict {ordem: peso}, ver
+          `PESOS_NGRAMA_PADRAO`. Todas as ordens com dados entram na
+          mistura, com os pesos normalizados entre as disponíveis;
+        - `peso_trigrama` (compatibilidade): atalho de 2 ordens que
+          reproduz exatamente o comportamento anterior --
+
+              pesos_ngrama = {2: peso_trigrama, 1: 1 - peso_trigrama}
+
+          Quando `pesos_ngrama` é dado, ele tem prioridade e
+          `peso_trigrama` é ignorado. Sem nenhum dos dois, usa
+          `PESOS_NGRAMA_PADRAO`."""
+        if pesos_ngrama is None:
+            if peso_trigrama is not None:
+                pesos_ngrama = {2: peso_trigrama, 1: 1.0 - peso_trigrama}
+            else:
+                pesos_ngrama = PESOS_NGRAMA_PADRAO
+
+        dists = {
+            ordem: self._distribuicao_ordem(cor, contexto, ordem, peso_cor)
+            for ordem in range(0, 5)
+        }
+        return _combinar_ordens(dists, pesos_ngrama)
 
     def _gerar_corpo(
         self, cor: str, peso_cor: float, nome: Optional[str], max_palavras: int, rng: random.Random,
-        peso_trigrama: float = PESO_TRIGRAMA_PADRAO,
+        peso_trigrama: Optional[float] = PESO_TRIGRAMA_PADRAO,
+        pesos_ngrama: Optional[Dict[int, float]] = None,
     ) -> Tuple[str, Optional[str]]:
         semente = _palavra_semente(nome)
         vocabulario_conhecido = set(self.unigramas_por_cor[cor]) | set(self.unigramas_global)
@@ -808,7 +893,9 @@ class ModeloMarkovPorCor:
             contexto = [TOKEN_INICIO]
 
         while len(palavras_geradas) < max_palavras:
-            dist = self._distribuicao_proxima_palavra(cor, tuple(contexto), peso_cor, peso_trigrama)
+            dist = self._distribuicao_proxima_palavra(
+                cor, tuple(contexto), peso_cor, peso_trigrama, pesos_ngrama
+            )
             dist.pop(TOKEN_INICIO, None)
             if not dist:
                 break
@@ -885,7 +972,8 @@ class ModeloMarkovPorCor:
         nome: Optional[str] = None,
         max_palavras: int = 20,
         seed: Optional[int] = None,
-        peso_trigrama: float = PESO_TRIGRAMA_PADRAO,
+        peso_trigrama: Optional[float] = None,
+        pesos_ngrama: Optional[Dict[int, float]] = None,
     ) -> dict:
         """Gera o texto de uma carta para a `cor` dada: uma linha de
         keywords (se houver) seguida do corpo de habilidade gerado pela
@@ -893,11 +981,13 @@ class ModeloMarkovPorCor:
         keywords + corpo combinados), as keywords separadas, o corpo
         separado e a palavra-semente usada -- para fins de transparência.
 
-        `peso_trigrama` (0..1) controla o peso dos trigramas sobre os
-        bigramas na escolha da próxima palavra (ver
-        `_distribuicao_proxima_palavra`): quanto maior, mais o texto segue
-        sequências reais de três palavras do corpus (~mais coerente);
-        quanto menor, mais solto/caótico.
+        A escolha da próxima palavra combina várias ordens de n-grama
+        (unigrama ate pentagrama). Por padrão usa `PESOS_NGRAMA_PADRAO`
+        (ver `_distribuicao_proxima_palavra`), que dá peso a tetragrama e
+        pentagrama. Para controlar ordem a ordem, passe `pesos_ngrama`
+        (ex.: `{4: 0.4, 3: 0.3, 2: 0.2, 1: 0.1}`). O atalho legado
+        `peso_trigrama` (0..1) continua funcionando e reproduz o
+        comportamento antigo de interpolar SÓ trigrama e bigrama.
         """
         if cor not in CORES_VALIDAS:
             raise ValueError(f"Cor inválida: {cor!r}. Use uma de {CORES_VALIDAS}.")
@@ -906,7 +996,7 @@ class ModeloMarkovPorCor:
 
         palavras_chave = self._escolher_keywords(cor, peso_cor, rng)
         corpo, semente = self._gerar_corpo(
-            cor, peso_cor, nome, max_palavras, rng, peso_trigrama
+            cor, peso_cor, nome, max_palavras, rng, peso_trigrama, pesos_ngrama
         )
 
         partes = []
@@ -968,7 +1058,8 @@ class ModeloTextoPorTipo:
         nome: Optional[str] = None,
         max_palavras: int = 20,
         seed: Optional[int] = None,
-        peso_trigrama: float = PESO_TRIGRAMA_PADRAO,
+        peso_trigrama: Optional[float] = None,
+        pesos_ngrama: Optional[Dict[int, float]] = None,
     ) -> dict:
         """Gera o texto para (cor, tipo). Se `tipo` for None, sorteia um
         tipo ponderado pela frequência no corpus. O dict de retorno é o
@@ -988,6 +1079,7 @@ class ModeloTextoPorTipo:
             max_palavras=max_palavras,
             seed=seed,
             peso_trigrama=peso_trigrama,
+            pesos_ngrama=pesos_ngrama,
         )
         resultado["tipo"] = tipo
         return resultado

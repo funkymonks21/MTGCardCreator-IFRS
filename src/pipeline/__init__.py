@@ -1,6 +1,7 @@
 from .generator import (
     Carta,
     COLOR_PIE,
+    PESOS_NGRAMA_PADRAO,
     PESO_COR_PADRAO,
     PESO_TRIGRAMA_PADRAO,
     TIPO_ALEATORIO,
@@ -15,6 +16,7 @@ __all__ = [
     "gerar_carta",
     "Carta",
     "COLOR_PIE",
+    "PESOS_NGRAMA_PADRAO",
     "PESO_COR_PADRAO",
     "PESO_TRIGRAMA_PADRAO",
     "TIPO_ALEATORIO",
