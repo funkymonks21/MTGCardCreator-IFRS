@@ -6,14 +6,18 @@ gera cartas de *Magic: The Gathering* originais a partir de um **nome**, uma
 Encantamento ou Terreno). O tipo pode ser escolhido pelo usuário, inferido
 a partir do nome ou sorteado. O pipeline é organizado em etapas: primeiro o
 tipo e os **subtipos** são decididos, depois as habilidades são geradas por
-uma cadeia de Markov (bigramas/trigramas) treinada separadamente por
+uma cadeia de Markov (unigramas até pentagramas) treinada separadamente por
 **tipo e cor** sobre o `oracle_text` real das cartas da Scryfall, e por fim
-custo de mana e poder/resistência são previstos por regressão. Dois pesos
+custo de mana e poder/resistência são previstos por regressão. Os pesos
 ajustáveis controlam a geração do texto: `peso_cor` decide o quanto o
 vocabulário típico da cor domina a geração (perto de 1 = fiel à cor, perto
-de 0 = mais caótico/genérico), e `peso_trigrama` interpola trigrama e
-bigrama (perto de 1 = o texto segue sequências reais de três palavras do
-corpus, mais coerente; perto de 0 = mais solto/variado).
+de 0 = mais caótico/genérico), e `pesos_ngrama` dá um peso para **cada ordem
+de n-grama** (unigrama, bigrama, trigrama, tetragrama e pentagrama). Contextos
+mais longos só existem quando aquela sequência apareceu no corpus, então são
+o sinal mais forte de coerência — por isso o padrão
+(`PESOS_NGRAMA_PADRAO = {4: 1.00, 3: 0.70, 2: 0.40, 1: 0.15, 0: 0.02}`)
+favorece tetragrama/pentagrama. O atalho legado `peso_trigrama` (interpola só
+trigrama e bigrama) continua aceito para compatibilidade.
 
 Os subtipos também vêm dos dados: as quantidades e os nomes são estimados
 do corpus, condicionados pelo tipo e pela cor. Criaturas recebem 1–3
@@ -204,7 +208,7 @@ python src/pipeline/treinar_modelos_subtipos.py
 python src/pipeline/treinar_modelos_estruturais.py
 ```
 
-O primeiro treina um modelo de Markov (bigramas/trigramas) para CADA tipo
+O primeiro treina um modelo de Markov (unigramas até pentagramas) para CADA tipo
 de carta (criatura, instantânea, feitiço, artefato, encantamento, terreno),
 por cor, sobre o `oracle_text` de `data/processed/cards.parquet`, e salva o
 resultado em `models/modelo_markov.pkl` (um `ModeloTextoPorTipo`, que agrupa
@@ -249,8 +253,11 @@ from pipeline import gerar_carta
 # None/vazio também significa automático; se a inferência não tiver
 # certeza (empate ou nome sem pista), o tipo é sorteado.
 carta = gerar_carta("Murder", "Preto", peso_cor=0.7)  # automático
-# peso_trigrama (0..1) também é aceito: perto de 1 = texto mais coerente
-# (segue sequências reais de três palavras), perto de 0 = mais solto.
+# pesos_ngrama dá um peso por ORDEM de n-grama (0=unigrama ... 4=pentagrama);
+# os pesos são relativos entre as ordens que tiverem dados no contexto atual.
+# carta = gerar_carta("Murder", "Preto", peso_cor=0.7,
+#                     pesos_ngrama={4: 1.0, 3: 0.7, 2: 0.4, 1: 0.15, 0: 0.02})
+# Atalho legado: peso_trigrama (0..1) interpola só trigrama e bigrama.
 # carta = gerar_carta("Murder", "Preto", peso_cor=0.7, peso_trigrama=0.9)
 print("tipo:", carta.tipo)
 print("linha de tipo:", carta.tipo_linha)  # ex.: "Creature — Human Warrior"
@@ -279,8 +286,9 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] ~~Regras de color pie por cor~~ — mantido em `color_pie.py`, não
       usado na geração atual (ver decisão de design no topo deste README)
 - [x] Geração de texto via cadeia de Markov por tipo e cor, com peso
-      ajustável da cor (`peso_cor`) e dos trigramas sobre os bigramas
-      (`peso_trigrama`), preservando números e modificadores de P/T (`3`,
+      ajustável da cor (`peso_cor`) e por ordem de n-grama
+      (`pesos_ngrama`: unigrama, bigrama, trigrama, tetragrama e
+      pentagrama), preservando números e modificadores de P/T (`3`,
       `+1/+1`, `-1/-1`, `2/2`, `+X/+X`) e completando padrões incompletos
       (“gets until...”, “deals damage...” sem valor) — `src/pipeline/texto_markov.py`
 - [x] Tipos de carta (criatura, instantânea, feitiço, artefato,

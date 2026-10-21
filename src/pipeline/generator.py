@@ -73,7 +73,7 @@ PESO_COR_PADRAO = 0.7
 # `PESOS_NGRAMA_PADRAO` (importado de pipeline.texto_markov) são os pesos
 # por ORDEM de n-grama (unigrama..pentagrama) usados quando nem
 # `peso_trigrama` nem `pesos_ngrama` são passados. Ex.:
-# {4: 0.35, 3: 0.30, 2: 0.20, 1: 0.10, 0: 0.05}.
+# {4: 1.00, 3: 0.70, 2: 0.40, 1: 0.15, 0: 0.02}.
 
 # Opções de tipo expostas para a interface.
 #

@@ -175,18 +175,21 @@ PESO_TRIGRAMA_PADRAO = 0.85
 # 4 = pentagrama; a ordem 0 (chave 0) é o unigrama, o "chão" do modelo.
 #
 # Como funciona: no passo de geração, cada ordem que TENHA dados para o
-# contexto atual entra na mistura com o seu peso; contextualizações mais
-# longas (pentagrama/tetragrama) tendem a ser mais raras, então os pesos
-# decrescem para dar mais massa às ordens curtas -- mas ainda usam o
-# contexto longo quando ele existe, o que deixa o texto mais coerente.
-# Os pesos NÃO precisam somar 1: eles são normalizados entre as ordens
-# disponíveis naquele passo (ver `_combinar_ordens`).
+# contexto atual entra na mistura com o seu peso; os pesos são normalizados
+# ENTRE as ordens disponíveis naquele passo (ver `_combinar_ordens`). Ordens
+# sem contexto ficam de fora automaticamente.
+#
+# A ideia dos valores abaixo: confiar MAIS no contexto mais longo quando ele
+# existe. Um contexto de 4-5 palavras só aparece no corpus se aquela sequência
+# realmente ocorreu, então é um sinal forte; por isso o pentagrama/tetragrama
+# puxam mais que bigrama/unigrama. Os pesos são RELATIVOS: se só houver
+# bigrama e trigrama num passo, a mistura vira só esses dois.
 PESOS_NGRAMA_PADRAO = {
-    4: 0.35,  # pentagrama (contexto de 4 palavras)
-    3: 0.30,  # tetragrama (contexto de 3 palavras)
-    2: 0.20,  # trigrama   (contexto de 2 palavras)
-    1: 0.10,  # bigrama    (contexto de 1 palavra)
-    0: 0.05,  # unigrama   (sem contexto)
+    4: 1.00,  # pentagrama (contexto de 4 palavras) -- quando existe, manda
+    3: 0.70,  # tetragrama (contexto de 3 palavras)
+    2: 0.40,  # trigrama   (contexto de 2 palavras)
+    1: 0.15,  # bigrama    (contexto de 1 palavra)
+    0: 0.02,  # unigrama   (sem contexto) -- só o "chão", quase nunca domina
 }
 
 # Keywords conhecidas (lado esquerdo = como aparecem em minúsculo no
@@ -578,18 +581,25 @@ def _combinar_ordens(
     só houver bigrama e trigrama, a mistura vira a interpolação desses dois
     -- e se houver todas as ordens, todas contribuem. Isso é o que permite
     "usar o pentagrama quando ele existe, mas nunca ficar sem previsão"."""
-    disponiveis = {ordem: d for ordem, d in dists.items() if d}
+    # Só ordens com dados E com peso > 0 entram na mistura. Descartar peso 0
+    # aqui (em vez de deixar o item com peso 0.0) mantém a distribuição limpa:
+    # candidatos com peso zero não devem nem aparecer como chave.
+    disponiveis = {
+        ordem: d
+        for ordem, d in dists.items()
+        if d and pesos.get(ordem, 0.0) > 0
+    }
     if not disponiveis:
-        return Counter()
-
-    if len(disponiveis) == 1:
-        return next(iter(disponiveis.values()))
-
-    pesos_ef = {ordem: pesos.get(ordem, 0.0) for ordem in disponiveis}
-    soma = sum(pesos_ef.values())
-    if soma <= 0:  # pesos zerados para essas ordens: cai para pesos iguais
+        # Nenhuma ordem com dados e peso positivo (ex.: só pediram ordens
+        # sem contexto): cai para as ordens que TÊM dados, com pesos iguais.
+        disponiveis = {ordem: d for ordem, d in dists.items() if d}
+        if not disponiveis:
+            return Counter()
         pesos_ef = {ordem: 1.0 for ordem in disponiveis}
-        soma = len(disponiveis)
+        soma = float(len(disponiveis))
+    else:
+        pesos_ef = {ordem: pesos[ordem] for ordem in disponiveis}
+        soma = sum(pesos_ef.values())
 
     resultado: Counter = Counter()
     for ordem, dist in disponiveis.items():
