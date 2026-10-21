@@ -42,7 +42,7 @@ from typing import Dict, List, Optional
 from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
-from .imagem import compor_frame, gerar_arte
+from .imagem import compor_frame, gerar_arte_detalhada
 from .regras_tipo import TEXTO_VAZIO, ajustar_subtipos_por_texto, aplicar_regras_texto
 from .subtipos import ModeloSubtipos
 from .texto_markov import PESOS_NGRAMA_PADRAO, PESO_TRIGRAMA_PADRAO, carregar_modelo
@@ -166,6 +166,12 @@ class Carta:
     # "sorteio". `tipo_motivo` explica a pista usada na inferência.
     tipo_origem: str = "escolhido"
     tipo_motivo: str = ""
+    # Arte: se a ilustração veio da API (True) ou do fallback procedural
+    # (False) e, no segundo caso, o motivo -- permite avisar o usuário em
+    # vez de mostrar um fundo liso sem explicação. Nulo quando a carta foi
+    # gerada sem arte (`usar_arte=False`).
+    arte_da_api: Optional[bool] = None
+    arte_motivo: Optional[str] = None
 
 
 def _resolver_tipo(tipo: Optional[str]) -> str:
@@ -229,6 +235,7 @@ def gerar_carta(
     n_paragrafos: Optional[int] = None,
     usar_arte: bool = False,
     seed_arte: Optional[int] = None,
+    avisar_arte=print,
 ) -> Carta:
     """Ponto de entrada único do pipeline.
 
@@ -277,7 +284,16 @@ def gerar_carta(
     "placeholder" simples (rápido, offline, bom para gerar em lote/testar).
     Com `usar_arte=True`, o pipeline chama a API de imagem (com fallback
     local se a rede falhar) e desenha a moldura realista. `seed_arte` fixa
-    a ilustração (mesma seed -> mesma arte).
+    a ilustração (mesma seed -> mesma arte). A arte é pedida já na
+    PROPORÇÃO DA JANELA de ilustração da carta (ver
+    imagem.tamanho_janela_arte), então não é esticada nem cortada.
+
+    `avisar_arte` é a função de log usada quando a arte NÃO vem da API
+    (ex.: limite gratuito de 1 imagem/45s atingido, sem rede): ela recebe
+    uma mensagem explicando o motivo, para a interface mostrar ao usuário
+    em vez de exibir um fundo liso sem explicação. Passe
+    `avisar_arte=None` para silenciar. O resultado também fica em
+    `Carta.arte_da_api`/`Carta.arte_motivo`.
     """
     if cor not in COLOR_PIE:
         raise ValueError(f"Cor inválida: {cor!r}. Use uma de {list(COLOR_PIE)}.")
@@ -384,16 +400,25 @@ def gerar_carta(
         if pt is not None:
             poder, resistencia = pt
 
+    arte_da_api: Optional[bool] = None
+    arte_motivo: Optional[str] = None
+
     if usar_arte:
         # Etapas 7-8: arte via API de imagem (com fallback local) e
-        # composição da moldura realista. Ver pipeline.imagem.
-        arte = gerar_arte(
+        # composição da moldura realista. Ver pipeline.imagem. Usamos a
+        # variante "detalhada" para saber se veio da API ou do fallback e
+        # poder avisar o usuário (ex.: limite gratuito da API atingido).
+        resultado_arte = gerar_arte_detalhada(
             nome,
             tipo_linha or tipo_chave,
             texto_regras,
             cor_abrev,
             seed=seed_arte,
+            avisar=avisar_arte,
         )
+        arte_da_api = resultado_arte.da_api
+        arte_motivo = resultado_arte.motivo
+        arte = resultado_arte.imagem
         imagem = compor_frame(
             arte,
             nome=nome,
@@ -427,6 +452,8 @@ def gerar_carta(
         palavras_chave=palavras_chave,
         n_paragrafos=resultado.get("n_paragrafos", 0),
         tipo_origem=tipo_origem,
+        arte_da_api=arte_da_api,
+        arte_motivo=arte_motivo,
         tipo_motivo=tipo_motivo,
     )
 

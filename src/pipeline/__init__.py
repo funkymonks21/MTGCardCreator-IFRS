@@ -10,7 +10,15 @@ from .generator import (
     gerar_carta,
 )
 from .subtipos import ModeloSubtipos
-from .imagem import ArtePollinations, compor_frame, gerar_arte, montar_prompt
+from .imagem import (
+    ArtePollinations,
+    ResultadoArte,
+    compor_frame,
+    gerar_arte,
+    gerar_arte_detalhada,
+    montar_prompt,
+    tamanho_janela_arte,
+)
 from .texto_markov import FATOR_KEYWORDS, MAX_KEYWORDS, MAX_PARAGRAFOS
 from .tipo_por_nome import InferenciaTipo, inferir_tipo_por_nome
 
@@ -31,7 +39,10 @@ __all__ = [
     "InferenciaTipo",
     "inferir_tipo_por_nome",
     "gerar_arte",
+    "gerar_arte_detalhada",
+    "ResultadoArte",
     "compor_frame",
     "montar_prompt",
+    "tamanho_janela_arte",
     "ArtePollinations",
 ]

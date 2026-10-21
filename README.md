@@ -75,11 +75,22 @@ e selo de poder/resistência. As fontes são livres (Cinzel para títulos, EB
 Garamond para o corpo — ambas SIL OFL, em `assets/fonts/`); a Beleren oficial
 é proprietária e **não** é distribuída aqui.
 
+- **Proporção correta da arte:** a ilustração é pedida à API **já na
+  proporção da janela** de arte da carta (`tamanho_janela_arte()`, ~594×372),
+  a mesma que a moldura usa. Antes pedia-se 630×880 (retrato) e a moldura
+  recortava para a janela paisagem — o que **descartava ~55% da imagem** e
+  fazia a arte parecer "cortada". Agora o recorte é 0%.
 - **Cache:** artes já baixadas ficam em `assets/cache_arte/` (fora do git), o
   que torna a mesma carta instantânea ao recalcular.
-- **Fallback:** se a API falhar (sem internet, timeout, serviço fora do ar), a
-  carta ainda é gerada com um fundo procedural determinístico — a geração
-  **nunca** quebra por causa da arte.
+- **Limite da API tratado:** o plano gratuito da Pollinations permite ~1
+  imagem a cada 45s por IP. Quando o servidor responde `402`, o pipeline
+  respeita o header `Retry-After` e tenta de novo; se continuar bloqueado,
+  usa o fallback **avisando o motivo** (`avisar_arte`), em vez de mostrar um
+  fundo liso sem explicação.
+- **Fallback:** se a API falhar (sem internet, timeout, limite, serviço fora
+  do ar), a carta ainda é gerada com um fundo procedural determinístico — a
+  geração **nunca** quebra por causa da arte. O motivo fica em
+  `Carta.arte_da_api` / `Carta.arte_motivo`.
 - **Seed:** a arte é reprodutível (mesma seed/prompt → mesma imagem); o
   parâmetro `seed_arte` de `gerar_carta` permite fixá-la.
 - **Trocando de provedor:** `ArtePollinations` isola a chamada HTTP no

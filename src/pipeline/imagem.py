@@ -46,6 +46,7 @@ from __future__ import annotations
 import hashlib
 import io
 import random
+import time
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -70,6 +71,62 @@ RAIO_CANTO = 26
 # cartas modernas.
 MARGEM_EXTERNA = 18          # borda preta externa
 MARGEM_INTERNA = 12          # respiro entre a borda e os painéis
+
+# Altura do painel do título (nome + custo). A janela de arte começa logo
+# abaixo dele.
+ALTURA_TITULO = 62
+
+# ---------------------------------------------------------------------------
+# Geometria da JANELA DE ARTE. Estes números são a ÚNICA fonte de verdade
+# sobre onde a ilustração cai na carta: tanto `compor_frame` (que recorta e
+# cola a arte) quanto `gerar_arte` (que PEDE a imagem à API já nesta
+# proporção) usam `tamanho_janela_arte()`. Antes, `gerar_arte` pedia uma
+# imagem 630x880 (retrato) e o frame recortava para ~594x372 (paisagem) --
+# o `ImageOps.fit` jogava fora mais da metade da imagem, e era isso que
+# fazia a arte parecer "cortada" dentro da moldura.
+# ---------------------------------------------------------------------------
+FRACAO_ALTURA_ARTE = 0.50    # fração da altura total reservada à arte
+
+
+def tamanho_janela_arte(
+    largura: int = LARGURA_PADRAO, altura: int = ALTURA_PADRAO
+) -> Tuple[int, int]:
+    """Devolve (largura, altura) em pixels da JANELA DE ARTE -- a área útil
+    onde a ilustração é exibida, já descontando as margens e o painel do
+    título. É a proporção que a API de imagem deve receber, para a arte não
+    ser esticada/cortada na composição."""
+    largura_util = largura - 2 * MARGEM_EXTERNA
+    y_arte0 = MARGEM_EXTERNA + ALTURA_TITULO + 6
+    y_arte1 = MARGEM_EXTERNA + int(altura * FRACAO_ALTURA_ARTE)
+    return largura_util, max(1, y_arte1 - y_arte0)
+
+
+def _geometria(
+    largura: int = LARGURA_PADRAO, altura: int = ALTURA_PADRAO
+) -> Dict[str, int]:
+    """Mesma geometria vertical usada por `compor_frame`, isolada para que
+    composição e cálculo da janela de arte nunca fiquem em desacordo."""
+    largura_util = largura - 2 * MARGEM_EXTERNA
+    y_titulo0 = MARGEM_EXTERNA
+    y_titulo1 = y_titulo0 + ALTURA_TITULO
+    y_arte0 = y_titulo1 + 6
+    y_arte1 = MARGEM_EXTERNA + int(altura * FRACAO_ALTURA_ARTE)
+    y_tipo0 = y_arte1 + 8
+    y_tipo1 = y_tipo0 + 44
+    y_texto0 = y_tipo1 + 10
+    y_texto1 = altura - MARGEM_EXTERNA - 46
+    return {
+        "largura_util": largura_util,
+        "y_titulo0": y_titulo0,
+        "y_titulo1": y_titulo1,
+        "y_arte0": y_arte0,
+        "y_arte1": y_arte1,
+        "altura_arte": y_arte1 - y_arte0,
+        "y_tipo0": y_tipo0,
+        "y_tipo1": y_tipo1,
+        "y_texto0": y_texto0,
+        "y_texto1": y_texto1,
+    }
 
 FONTE_TITULO = "assets/fonts/Cinzel.ttf"
 FONTE_TEXTO = "assets/fonts/EBGaramond.ttf"
@@ -219,46 +276,140 @@ def _palavras_tematicas(texto_regras: str, limite: int = 3) -> str:
 # 2. ARTE (API de imagem)
 # ===========================================================================
 
+# Motivos de falha da API (usados para AVISAR o usuário em vez de cair no
+# fallback silenciosamente -- foi o que fez o fundo liso aparecer sem
+# explicação).
+MOTIVO_LIMITE = "limite"
+MOTIVO_REDE = "rede"
+MOTIVO_SERVIDOR = "servidor"
+MOTIVO_RESPOSTA = "resposta"
+
+# Plano grátis da Pollinations: 1 imagem a cada ~45s por IP. Quando o
+# servidor responde 402, ele manda um header `Retry-After` (segundos);
+# esperamos esse tempo (limitado a um teto) e tentamos de novo.
+_MAX_ESPERA_LIMITE = 50
+
+
+@dataclass
+class ResultadoArte:
+    """Resultado da tentativa de gerar a arte: a imagem (sempre presente --
+    cai no fallback se a API falhar), se veio da API ou do fallback, e o
+    motivo quando falhou."""
+
+    imagem: Image.Image
+    da_api: bool
+    motivo: Optional[str] = None
+    detalhe: str = ""
+
+
+def gerar_arte_detalhada(
+    nome: str,
+    tipo: str,
+    texto_regras: str = "",
+    cor: str = "C",
+    *,
+    seed: Optional[int] = None,
+    usar_cache: bool = True,
+    timeout: int = TIMEOUT_API,
+    tentar_limite: bool = True,
+    avisar=print,
+) -> ResultadoArte:
+    """Como `gerar_arte`, mas devolve um `ResultadoArte` dizendo se a arte
+    veio da API ou do fallback e, no segundo caso, o MOTIVO.
+
+    É o que permite a interface avisar "a API está no limite, tente de novo
+    em Ns" em vez de mostrar um fundo liso sem explicação. `avisar` é uma
+    função de log (default `print`); passe `avisar=lambda *_: None` para
+    silenciar.
+    """
+    prompt = montar_prompt(nome, tipo, texto_regras, cor)
+    if seed is None:
+        seed = _seed_do_prompt(prompt)
+
+    # A arte é pedida DENTRO DA PROPORÇÃO DA JANELA (não da carta inteira):
+    # assim o frame não precisa recortar nada e a ilustração não "corta".
+    largura_arte, altura_arte = tamanho_janela_arte()
+
+    if usar_cache:
+        em_cache = _ler_cache(prompt, largura_arte, altura_arte, seed)
+        if em_cache is not None:
+            return ResultadoArte(em_cache, da_api=True, detalhe="cache")
+
+    imagem, motivo, detalhe = _arte_via_api(
+        prompt, largura_arte, altura_arte, seed, timeout,
+        tentar_limite=tentar_limite, avisar=avisar,
+    )
+    if imagem is not None:
+        if usar_cache:
+            _salvar_cache(imagem, prompt, largura_arte, altura_arte, seed)
+        return ResultadoArte(imagem, da_api=True)
+
+    # Fallback: fundo procedural. Avisamos o motivo para o usuário entender
+    # por que não veio arte de verdade.
+    _avisar_motivo(motivo, detalhe, avisar)
+    fallback = arte_fallback(
+        nome, cor, largura_arte, altura_arte, seed
+    )
+    return ResultadoArte(fallback, da_api=False, motivo=motivo, detalhe=detalhe)
+
+
+def _avisar_motivo(motivo: Optional[str], detalhe: str, avisar) -> None:
+    """Emite a mensagem adequada ao motivo da falha, quando há um log
+    (`avisar`) configurado."""
+    if avisar is None:
+        return
+    if motivo == MOTIVO_LIMITE:
+        avisar(
+            f"[arte] A API de imagem atingiu o limite gratuito (1 imagem a "
+            f"cada ~45s por IP). Usando arte provisória; tente de novo em "
+            f"instantes. {detalhe}".strip()
+        )
+    elif motivo == MOTIVO_REDE:
+        avisar(
+            f"[arte] Sem conexão com a API de imagem ({detalhe}). Usando "
+            f"arte provisória local."
+        )
+    elif motivo == MOTIVO_SERVIDOR:
+        avisar(
+            f"[arte] A API de imagem respondeu com erro ({detalhe}). Usando "
+            f"arte provisória local."
+        )
+    else:
+        avisar(
+            f"[arte] Resposta inesperada da API de imagem ({detalhe}). "
+            f"Usando arte provisória local."
+        )
+
+
 def gerar_arte(
     nome: str,
     tipo: str,
     texto_regras: str = "",
     cor: str = "C",
     *,
-    largura: int = LARGURA_PADRAO,
-    altura: int = ALTURA_PADRAO,
     seed: Optional[int] = None,
     usar_cache: bool = True,
     timeout: int = TIMEOUT_API,
+    avisar=print,
 ) -> Image.Image:
     """Gera a ILUSTRAÇÃO da carta (sem moldura) a partir do nome/tipo/texto.
 
     Tenta a API de imagem (Pollinations.ai) e, se ela falhar, cai num
     fallback procedural local -- nunca levanta exceção por causa de rede.
-    O resultado é uma `PIL.Image.Image` já no tamanho pedido (por padrão
-    630x880, a proporção da carta).
+    A imagem devolvida já vem na PROPORÇÃO DA JANELA DE ARTE (a área onde a
+    ilustração aparece na carta, ver `tamanho_janela_arte`), então a
+    composição não precisa recortá-la.
 
     `seed` fixa a arte (mesma seed -> mesma imagem); se None, a seed é
     derivada do prompt, o que também a torna reprodutível para o mesmo
     nome/tipo/texto. `usar_cache` reaproveita o arquivo em
-    `assets/cache_arte/` quando existir.
+    `assets/cache_arte/` quando existir. Para saber se a arte veio da API
+    ou do fallback, use `gerar_arte_detalhada`.
     """
-    prompt = montar_prompt(nome, tipo, texto_regras, cor)
-    if seed is None:
-        seed = _seed_do_prompt(prompt)
-
-    if usar_cache:
-        em_cache = _ler_cache(prompt, largura, altura, seed)
-        if em_cache is not None:
-            return em_cache
-
-    arte = _arte_via_api(prompt, largura, altura, seed, timeout)
-    if arte is None:
-        arte = arte_fallback(nome, cor, largura, altura, seed)
-
-    if usar_cache:
-        _salvar_cache(arte, prompt, largura, altura, seed)
-    return arte
+    return gerar_arte_detalhada(
+        nome, tipo, texto_regras, cor,
+        seed=seed, usar_cache=usar_cache, timeout=timeout, avisar=avisar,
+    ).imagem
 
 
 def _arte_via_api(
@@ -267,10 +418,19 @@ def _arte_via_api(
     altura: int,
     seed: int,
     timeout: int,
-) -> Optional[Image.Image]:
-    """Baixa a arte da Pollinations.ai. Devolve None em QUALQUER falha
-    (rede, status ruim, corpo não-imagem), para o chamador usar o
-    fallback."""
+    tentar_limite: bool = True,
+    avisar=print,
+) -> Tuple[Optional[Image.Image], Optional[str], str]:
+    """Baixa a arte da Pollinations.ai.
+
+    Devolve `(imagem, motivo, detalhe)`. Em caso de sucesso a imagem vem
+    preenchida e o motivo é None. Em QUALQUER falha a imagem é None, e o
+    motivo diz o que houve (limite/rede/servidor/resposta) para o chamador
+    decidir o que avisar.
+
+    Quando o servidor responde 402 (limite do plano grátis), respeitamos o
+    header `Retry-After` e tentamos de novo uma vez (se `tentar_limite`).
+    """
     prompt_url = urllib.parse.quote(prompt, safe="")
     url = f"https://image.pollinations.ai/prompt/{prompt_url}"
     params = {
@@ -278,32 +438,79 @@ def _arte_via_api(
         "height": int(altura),
         "seed": int(seed),
         "nologo": "true",
-        "model": "flux",
     }
     try:
         resposta = requests.get(url, params=params, timeout=timeout)
+    except Exception as exc:  # rede, timeout, DNS...
+        return None, MOTIVO_REDE, f"{type(exc).__name__}: {exc}"
+
+    if resposta.status_code == 402:
+        espera = _retry_apos(resposta)
+        if tentar_limite and espera is not None and 0 <= espera <= _MAX_ESPERA_LIMITE:
+            time.sleep(espera + 1)
+            try:
+                resposta = requests.get(url, params=params, timeout=timeout)
+            except Exception as exc:
+                return None, MOTIVO_REDE, f"{type(exc).__name__}: {exc}"
+            # Se a nova tentativa passou do limite, seguimos o fluxo normal
+            # (a resposta pode ser uma imagem válida). Só desistimos se
+            # ainda estiver bloqueada.
+            if resposta.status_code == 402:
+                return None, MOTIVO_LIMITE, (
+                    f"limite de {espera}s respeitado, ainda bloqueado"
+                )
+        else:
+            return None, MOTIVO_LIMITE, resposta.text[:160]
+
+    if resposta.status_code >= 500:
+        return None, MOTIVO_SERVIDOR, f"HTTP {resposta.status_code}"
+
+    try:
         resposta.raise_for_status()
-        if not resposta.headers.get("content-type", "").startswith("image/"):
-            return None
+    except Exception as exc:
+        return None, MOTIVO_RESPOSTA, f"{type(exc).__name__}: {exc}"
+
+    if not resposta.headers.get("content-type", "").startswith("image/"):
+        return None, MOTIVO_RESPOSTA, f"content-type={resposta.headers.get('content-type')}"
+
+    try:
         imagem = Image.open(io.BytesIO(resposta.content)).convert("RGB")
-        # A API nem sempre respeita exatamente o tamanho pedido: garantimos
-        # o tamanho final recortando/preenchendo (sem distorcer).
-        return ImageOps.fit(imagem, (largura, altura), Image.LANCZOS)
-    except Exception:
+    except Exception as exc:
+        return None, MOTIVO_RESPOSTA, f"imagem inválida: {exc}"
+
+    # A API nem sempre respeita exatamente o tamanho pedido: ajustamos para
+    # o tamanho da janela SEM distorcer (recorte centralizado). Como já
+    # pedimos a proporção certa, o recorte é pequeno (só bordas).
+    return ImageOps.fit(imagem, (largura, altura), Image.LANCZOS), None, ""
+
+
+def _retry_apos(resposta) -> Optional[int]:
+    """Lê o header `Retry-After` (segundos) da resposta, se houver."""
+    valor = resposta.headers.get("Retry-After") or resposta.headers.get("retry-after")
+    if not valor:
+        return None
+    try:
+        return int(float(valor))
+    except (TypeError, ValueError):
         return None
 
 
 def arte_fallback(
     nome: str,
     cor: str = "C",
-    largura: int = LARGURA_PADRAO,
-    altura: int = ALTURA_PADRAO,
+    largura: Optional[int] = None,
+    altura: Optional[int] = None,
     seed: int = 0,
 ) -> Image.Image:
     """Arte procedural determinística, usada quando a API não está
     disponível. Desenha um degradê de duas cores (derivadas da cor da
     carta e do nome) com algumas formas suaves, só para a carta não ficar
-    sem ilustração. Não é arte "de verdade" -- é o plano B."""
+    sem ilustração. Não é arte "de verdade" -- é o plano B.
+
+    Por padrão gera já na proporção da JANELA DE ARTE (não da carta
+    inteira), para ficar igual ao que a API devolveria."""
+    if largura is None or altura is None:
+        largura, altura = tamanho_janela_arte()
     base = CORES_FRAME.get(cor, CORES_FRAME["C"])
     rng = random.Random((seed or 0) ^ _hash_int(nome))
 
@@ -342,18 +549,23 @@ class ArtePollinations:
     Para trocar de serviço (Hugging Face, Stability...), basta
     implementar a mesma assinatura e passar a instância para
     `gerar_arte_por_provedor`.
+
+    Note que `largura`/`altura` são as da JANELA DE ARTE (ver
+    `tamanho_janela_arte`), não da carta inteira.
     """
 
     URL = "https://image.pollinations.ai/prompt/"
 
-    def __init__(self, modelo: str = "flux", timeout: int = TIMEOUT_API):
-        self.modelo = modelo
+    def __init__(self, timeout: int = TIMEOUT_API):
         self.timeout = timeout
 
     def gerar(
         self, prompt: str, largura: int, altura: int, seed: int
     ) -> Optional[Image.Image]:
-        return _arte_via_api(prompt, largura, altura, seed, self.timeout)
+        imagem, _motivo, _detalhe = _arte_via_api(
+            prompt, largura, altura, seed, self.timeout, avisar=None
+        )
+        return imagem
 
 
 def gerar_arte_por_provedor(
@@ -363,16 +575,16 @@ def gerar_arte_por_provedor(
     texto_regras: str = "",
     cor: str = "C",
     *,
-    largura: int = LARGURA_PADRAO,
-    altura: int = ALTURA_PADRAO,
     seed: Optional[int] = None,
 ) -> Image.Image:
     """Igual a `gerar_arte`, mas permite injetar outro PROVEDOR de imagem
     (qualquer objeto com o método `gerar`). Útil para testes e para trocar
-    de API sem mexer no resto do pipeline."""
+    de API sem mexer no resto do pipeline. A arte é pedida na proporção da
+    janela; se o provedor devolver None, cai no fallback local."""
     prompt = montar_prompt(nome, tipo, texto_regras, cor)
     if seed is None:
         seed = _seed_do_prompt(prompt)
+    largura, altura = tamanho_janela_arte()
     arte = provedor.gerar(prompt, largura, altura, seed)
     if arte is None:
         return arte_fallback(nome, cor, largura, altura, seed)
@@ -475,14 +687,15 @@ def compor_frame(
     x1 = largura - MARGEM_EXTERNA
     largura_util = x1 - x0
 
-    # --- geometria vertical dos painéis ----------------------------------
-    y_titulo0, y_titulo1 = x0, x0 + 62
-    y_arte0 = y_titulo1 + 6
-    y_arte1 = y_titulo0 + int(altura * 0.50)
-    y_tipo0, y_tipo1 = y_arte1 + 8, y_arte1 + 8 + 44
-    y_texto0 = y_tipo1 + 10
-    # A caixa de texto vai até deixar espaço para o selo de P/T no rodapé.
-    y_texto1 = altura - MARGEM_EXTERNA - 46
+    # --- geometria vertical dos painéis (compartilhada com a arte) --------
+    # Usamos `_geometria` para que a janela de arte seja EXATAMENTE a mesma
+    # que `gerar_arte` usa ao pedir a imagem à API -- assim a ilustração
+    # entra sem recorte.
+    g = _geometria(largura, altura)
+    y_titulo0, y_titulo1 = g["y_titulo0"], g["y_titulo1"]
+    y_arte0, y_arte1 = g["y_arte0"], g["y_arte1"]
+    y_tipo0, y_tipo1 = g["y_tipo0"], g["y_tipo1"]
+    y_texto0, y_texto1 = g["y_texto0"], g["y_texto1"]
 
     # --- painel do título (gradiente horizontal da cor) ------------------
     painel_titulo = _gradiente_horizontal(
