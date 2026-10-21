@@ -11,6 +11,11 @@ __pycache__/
 venv/
 .env
 
+# Cache das artes baixadas da API de imagem (reproduzível, ver
+# src/pipeline/imagem.py). As FONTES em assets/fonts/ são versionadas.
+assets/cache_arte/*
+!assets/cache_arte/.gitkeep
+
 # Ambientes/IDE
 .ipynb_checkpoints/
 .vscode/

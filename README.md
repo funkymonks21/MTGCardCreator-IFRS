@@ -64,6 +64,31 @@ terrenos não têm custo de mana. Só criaturas recebem poder/resistência.
 > (`AJUSTE_PESO_COR_POR_TIPO`) para dar mais voz ao modelo global, que é o
 > vocabulário mais representativo de artefato.
 
+**Arte e moldura** (`src/pipeline/imagem.py`): com `usar_arte=True` (o
+checkbox do notebook), a carta ganha **ilustração** e **moldura** de verdade.
+O pipeline monta um prompt a partir do **nome + tipo + texto** (a cor define a
+paleta; o tipo define a cena), chama uma API de imagem gratuita e **sem
+chave** ([Pollinations.ai](https://pollinations.ai/)) e desenha a moldura em
+código — borda preta com cantos arredondados, painel do título com gradiente
+da cor, janela da arte com vinheta, caixa de tipo, caixa de texto translúcida
+e selo de poder/resistência. As fontes são livres (Cinzel para títulos, EB
+Garamond para o corpo — ambas SIL OFL, em `assets/fonts/`); a Beleren oficial
+é proprietária e **não** é distribuída aqui.
+
+- **Cache:** artes já baixadas ficam em `assets/cache_arte/` (fora do git), o
+  que torna a mesma carta instantânea ao recalcular.
+- **Fallback:** se a API falhar (sem internet, timeout, serviço fora do ar), a
+  carta ainda é gerada com um fundo procedural determinístico — a geração
+  **nunca** quebra por causa da arte.
+- **Seed:** a arte é reprodutível (mesma seed/prompt → mesma imagem); o
+  parâmetro `seed_arte` de `gerar_carta` permite fixá-la.
+- **Trocando de provedor:** `ArtePollinations` isola a chamada HTTP no
+  contrato `gerar(prompt, largura, altura, seed)`; trocar por Hugging Face,
+  Stability etc. é implementar a mesma assinatura.
+
+Sem `usar_arte`, a figura sai num placeholder simples (rápido, offline), que é
+o que a geração em lote usa por padrão.
+
 **Inferência do tipo pelo nome** (`src/pipeline/tipo_por_nome.py`): com a
 opção `Automático (pelo nome)`, o sistema usa POS tagging do NLTK + WordNet
 (com listas curadas em inglês e português) para achar pistas no nome:
@@ -92,14 +117,14 @@ versionados em `models/`.
 > criação de cartas de 6 tipos (criatura, instantânea, feitiço, artefato,
 > encantamento, terreno), inferência do tipo pelo nome
 > (`src/pipeline/tipo_por_nome.py`), subtipos data-driven
-> (`src/pipeline/subtipos.py`), regras de Aura/Equipamento/Terreno
-> (`src/pipeline/regras_tipo.py`) e geração de custo de mana +
+> (`src/pipeline/subtipos.py`), regras de Aura/Equipamento/Veículo/Saga/Terreno
+> (`src/pipeline/regras_tipo.py`), geração de custo de mana +
 > poder/resistência via regressão scikit-learn (`src/pipeline/estrutura.py`)
-> já funcionando, com peso da cor ajustável. A imagem final ainda é um
-> placeholder (Pillow). As próximas etapas (classificador de cor em PyTorch
-> como métrica de diagnóstico, grafo de transições com NetworkX/Matplotlib,
-> arte via API de imagem e composição final em OpenCV) vão preencher o que
-> falta em `src/pipeline/`, sem alterar a interface do notebook.
+> e **arte via API de imagem + moldura realista em código**
+> (`src/pipeline/imagem.py`) já funcionando, com peso da cor ajustável.
+> As próximas etapas (classificador de cor em PyTorch como métrica de
+> diagnóstico, grafo de transições com NetworkX/Matplotlib) vão preencher o
+> que falta em `src/pipeline/`, sem alterar a interface do notebook.
 
 ## Stack
 
@@ -139,8 +164,11 @@ MTGCardCreator-IFRS/
 │       ├── regras_tipo.py              # Enchant (Aura), Equipped creature + Equip (Equipamento), Crew (Veículo), Saga (capítulos) e mana de terrenos
 │       ├── estrutura.py                # regressão de custo de mana e P/T (scikit-learn)
 │       ├── treinar_modelos_estruturais.py  # script de treino -> models/modelos_estruturais.pkl
+│       ├── imagem.py                   # arte via API de imagem + moldura realista (frame) desenhada em código
 │       ├── mecanicas.py                # [não usado na geração] inferência de mecânica, usado só como semente opcional
 │       └── color_pie.py                # [não usado na geração] regras de color pie, mantido como registro
+├── assets/
+│   └── fonts/                          # fontes livres (Cinzel, EB Garamond — SIL OFL) usadas na moldura
 ├── requirements.txt
 └── README.md
 ```
@@ -345,11 +373,16 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 - [x] Regressão do custo de mana (com tipo como feature) e de
       poder/resistência (só criaturas) (Scikit-Learn)
       — `src/pipeline/estrutura.py`
+- [x] **Arte via API de imagem** (Pollinations.ai, sem chave) com prompt
+      montado a partir do nome/tipo/texto, cache em disco e fallback
+      procedural local — `src/pipeline/imagem.py`
+- [x] **Moldura realista em código** (frame): painel do título com
+      gradiente da cor, janela da arte, caixa de tipo, caixa de texto
+      translúcida e selo de P/T, com fontes livres (Cinzel/EB Garamond) —
+      `src/pipeline/imagem.py`
 - [ ] Classificador de cor em PyTorch — não mais como filtro, mas como
       *métrica de diagnóstico* ("o quão on-color este texto gerado
       ficou?"), compatível com a escolha de deixar a geração livre
 - [ ] Grafo de transições de palavras por cor (NetworkX) + visualizações
       (Matplotlib) — bom complemento visual pro relatório, mostrando o
       "espaço" de onde a cadeia de Markov sorteia
-- [ ] Geração da arte via API de imagem
-- [ ] Montagem final da carta (OpenCV)

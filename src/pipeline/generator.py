@@ -42,6 +42,7 @@ from typing import Dict, List, Optional
 from PIL import Image, ImageDraw
 
 from .estrutura import ModeloEstrutural
+from .imagem import compor_frame, gerar_arte
 from .regras_tipo import TEXTO_VAZIO, ajustar_subtipos_por_texto, aplicar_regras_texto
 from .subtipos import ModeloSubtipos
 from .texto_markov import PESOS_NGRAMA_PADRAO, PESO_TRIGRAMA_PADRAO, carregar_modelo
@@ -226,6 +227,8 @@ def gerar_carta(
     peso_trigrama: Optional[float] = None,
     pesos_ngrama: Optional[Dict[int, float]] = None,
     n_paragrafos: Optional[int] = None,
+    usar_arte: bool = False,
+    seed_arte: Optional[int] = None,
 ) -> Carta:
     """Ponto de entrada único do pipeline.
 
@@ -265,8 +268,16 @@ def gerar_carta(
            pipeline.estrutura;
         6. texto gerado -> classificador PyTorch -> mede o quão "on-color"
            o texto gerado ficou (métrica/diagnóstico, não filtro);
-        7. nome + tipo + texto -> prompt -> API de imagem -> arte;
-        8. arte + textos -> composição final (OpenCV) -> imagem da carta.
+        7. [FEITO] nome + tipo + texto -> prompt -> API de imagem
+           (Pollinations.ai, sem chave) -> arte. Ver pipeline.imagem;
+        8. [FEITO] arte + textos -> composição final (moldura desenhada em
+           código, fontes livres) -> imagem da carta. Ver pipeline.imagem.
+
+    Sobre a ARTE (`usar_arte`): por padrão é False e a carta sai com o
+    "placeholder" simples (rápido, offline, bom para gerar em lote/testar).
+    Com `usar_arte=True`, o pipeline chama a API de imagem (com fallback
+    local se a rede falhar) e desenha a moldura realista. `seed_arte` fixa
+    a ilustração (mesma seed -> mesma arte).
     """
     if cor not in COLOR_PIE:
         raise ValueError(f"Cor inválida: {cor!r}. Use uma de {list(COLOR_PIE)}.")
@@ -373,9 +384,30 @@ def gerar_carta(
         if pt is not None:
             poder, resistencia = pt
 
-    imagem = _imagem_placeholder(
-        nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
-    )
+    if usar_arte:
+        # Etapas 7-8: arte via API de imagem (com fallback local) e
+        # composição da moldura realista. Ver pipeline.imagem.
+        arte = gerar_arte(
+            nome,
+            tipo_linha or tipo_chave,
+            texto_regras,
+            cor_abrev,
+            seed=seed_arte,
+        )
+        imagem = compor_frame(
+            arte,
+            nome=nome,
+            tipo_linha=tipo_linha,
+            texto_regras=texto_regras,
+            custo_mana=custo_mana,
+            poder=poder,
+            resistencia=resistencia,
+            cor=cor_abrev,
+        )
+    else:
+        imagem = _imagem_placeholder(
+            nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
+        )
 
     return Carta(
         nome=nome,
