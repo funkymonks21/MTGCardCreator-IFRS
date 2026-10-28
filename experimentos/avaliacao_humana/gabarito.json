@@ -1,0 +1,1208 @@
+{
+  "seed": 20261026,
+  "n_blocos": 40,
+  "blocos": [
+    {
+      "bloco": 1,
+      "ordem": 88,
+      "itens": [
+        "i001",
+        "i002",
+        "i003",
+        "i004"
+      ]
+    },
+    {
+      "bloco": 2,
+      "ordem": 136,
+      "itens": [
+        "i005",
+        "i006",
+        "i007",
+        "i008"
+      ]
+    },
+    {
+      "bloco": 3,
+      "ordem": 385,
+      "itens": [
+        "i009",
+        "i010",
+        "i011",
+        "i012"
+      ]
+    },
+    {
+      "bloco": 4,
+      "ordem": 342,
+      "itens": [
+        "i013",
+        "i014",
+        "i015",
+        "i016"
+      ]
+    },
+    {
+      "bloco": 5,
+      "ordem": 157,
+      "itens": [
+        "i017",
+        "i018",
+        "i019",
+        "i020"
+      ]
+    },
+    {
+      "bloco": 6,
+      "ordem": 75,
+      "itens": [
+        "i021",
+        "i022",
+        "i023",
+        "i024"
+      ]
+    },
+    {
+      "bloco": 7,
+      "ordem": 31,
+      "itens": [
+        "i025",
+        "i026",
+        "i027",
+        "i028"
+      ]
+    },
+    {
+      "bloco": 8,
+      "ordem": 278,
+      "itens": [
+        "i029",
+        "i030",
+        "i031",
+        "i032"
+      ]
+    },
+    {
+      "bloco": 9,
+      "ordem": 419,
+      "itens": [
+        "i033",
+        "i034",
+        "i035",
+        "i036"
+      ]
+    },
+    {
+      "bloco": 10,
+      "ordem": 255,
+      "itens": [
+        "i037",
+        "i038",
+        "i039",
+        "i040"
+      ]
+    },
+    {
+      "bloco": 11,
+      "ordem": 426,
+      "itens": [
+        "i041",
+        "i042",
+        "i043",
+        "i044"
+      ]
+    },
+    {
+      "bloco": 12,
+      "ordem": 3,
+      "itens": [
+        "i045",
+        "i046",
+        "i047",
+        "i048"
+      ]
+    },
+    {
+      "bloco": 13,
+      "ordem": 48,
+      "itens": [
+        "i049",
+        "i050",
+        "i051",
+        "i052"
+      ]
+    },
+    {
+      "bloco": 14,
+      "ordem": 238,
+      "itens": [
+        "i053",
+        "i054",
+        "i055",
+        "i056"
+      ]
+    },
+    {
+      "bloco": 15,
+      "ordem": 433,
+      "itens": [
+        "i057",
+        "i058",
+        "i059",
+        "i060"
+      ]
+    },
+    {
+      "bloco": 16,
+      "ordem": 85,
+      "itens": [
+        "i061",
+        "i062",
+        "i063",
+        "i064"
+      ]
+    },
+    {
+      "bloco": 17,
+      "ordem": 176,
+      "itens": [
+        "i065",
+        "i066",
+        "i067",
+        "i068"
+      ]
+    },
+    {
+      "bloco": 18,
+      "ordem": 445,
+      "itens": [
+        "i069",
+        "i070",
+        "i071",
+        "i072"
+      ]
+    },
+    {
+      "bloco": 19,
+      "ordem": 158,
+      "itens": [
+        "i073",
+        "i074",
+        "i075",
+        "i076"
+      ]
+    },
+    {
+      "bloco": 20,
+      "ordem": 414,
+      "itens": [
+        "i077",
+        "i078",
+        "i079",
+        "i080"
+      ]
+    },
+    {
+      "bloco": 21,
+      "ordem": 17,
+      "itens": [
+        "i081",
+        "i082",
+        "i083",
+        "i084"
+      ]
+    },
+    {
+      "bloco": 22,
+      "ordem": 78,
+      "itens": [
+        "i085",
+        "i086",
+        "i087",
+        "i088"
+      ]
+    },
+    {
+      "bloco": 23,
+      "ordem": 284,
+      "itens": [
+        "i089",
+        "i090",
+        "i091",
+        "i092"
+      ]
+    },
+    {
+      "bloco": 24,
+      "ordem": 148,
+      "itens": [
+        "i093",
+        "i094",
+        "i095",
+        "i096"
+      ]
+    },
+    {
+      "bloco": 25,
+      "ordem": 133,
+      "itens": [
+        "i097",
+        "i098",
+        "i099",
+        "i100"
+      ]
+    },
+    {
+      "bloco": 26,
+      "ordem": 153,
+      "itens": [
+        "i101",
+        "i102",
+        "i103",
+        "i104"
+      ]
+    },
+    {
+      "bloco": 27,
+      "ordem": 207,
+      "itens": [
+        "i105",
+        "i106",
+        "i107",
+        "i108"
+      ]
+    },
+    {
+      "bloco": 28,
+      "ordem": 416,
+      "itens": [
+        "i109",
+        "i110",
+        "i111",
+        "i112"
+      ]
+    },
+    {
+      "bloco": 29,
+      "ordem": 344,
+      "itens": [
+        "i113",
+        "i114",
+        "i115",
+        "i116"
+      ]
+    },
+    {
+      "bloco": 30,
+      "ordem": 121,
+      "itens": [
+        "i117",
+        "i118",
+        "i119",
+        "i120"
+      ]
+    },
+    {
+      "bloco": 31,
+      "ordem": 140,
+      "itens": [
+        "i121",
+        "i122",
+        "i123",
+        "i124"
+      ]
+    },
+    {
+      "bloco": 32,
+      "ordem": 108,
+      "itens": [
+        "i125",
+        "i126",
+        "i127",
+        "i128"
+      ]
+    },
+    {
+      "bloco": 33,
+      "ordem": 224,
+      "itens": [
+        "i129",
+        "i130",
+        "i131",
+        "i132"
+      ]
+    },
+    {
+      "bloco": 34,
+      "ordem": 194,
+      "itens": [
+        "i133",
+        "i134",
+        "i135",
+        "i136"
+      ]
+    },
+    {
+      "bloco": 35,
+      "ordem": 49,
+      "itens": [
+        "i137",
+        "i138",
+        "i139",
+        "i140"
+      ]
+    },
+    {
+      "bloco": 36,
+      "ordem": 159,
+      "itens": [
+        "i141",
+        "i142",
+        "i143",
+        "i144"
+      ]
+    },
+    {
+      "bloco": 37,
+      "ordem": 190,
+      "itens": [
+        "i145",
+        "i146",
+        "i147",
+        "i148"
+      ]
+    },
+    {
+      "bloco": 38,
+      "ordem": 262,
+      "itens": [
+        "i149",
+        "i150",
+        "i151",
+        "i152"
+      ]
+    },
+    {
+      "bloco": 39,
+      "ordem": 244,
+      "itens": [
+        "i153",
+        "i154",
+        "i155",
+        "i156"
+      ]
+    },
+    {
+      "bloco": 40,
+      "ordem": 389,
+      "itens": [
+        "i157",
+        "i158",
+        "i159",
+        "i160"
+      ]
+    }
+  ],
+  "itens": {
+    "i001": {
+      "braco": "M3",
+      "ordem": 88,
+      "nome": "Nightscape Familiar"
+    },
+    "i002": {
+      "braco": "REAL",
+      "ordem": 88,
+      "nome": "Nightscape Familiar"
+    },
+    "i003": {
+      "braco": "M2",
+      "ordem": 88,
+      "nome": "Nightscape Familiar"
+    },
+    "i004": {
+      "braco": "M1",
+      "ordem": 88,
+      "nome": "Nightscape Familiar"
+    },
+    "i005": {
+      "braco": "M2",
+      "ordem": 136,
+      "nome": "Rust Monster"
+    },
+    "i006": {
+      "braco": "M3",
+      "ordem": 136,
+      "nome": "Rust Monster"
+    },
+    "i007": {
+      "braco": "M1",
+      "ordem": 136,
+      "nome": "Rust Monster"
+    },
+    "i008": {
+      "braco": "REAL",
+      "ordem": 136,
+      "nome": "Rust Monster"
+    },
+    "i009": {
+      "braco": "M1",
+      "ordem": 385,
+      "nome": "Dusk Rose Reliquary"
+    },
+    "i010": {
+      "braco": "M2",
+      "ordem": 385,
+      "nome": "Dusk Rose Reliquary"
+    },
+    "i011": {
+      "braco": "REAL",
+      "ordem": 385,
+      "nome": "Dusk Rose Reliquary"
+    },
+    "i012": {
+      "braco": "M3",
+      "ordem": 385,
+      "nome": "Dusk Rose Reliquary"
+    },
+    "i013": {
+      "braco": "M3",
+      "ordem": 342,
+      "nome": "Stuck in Summoner's Sanctum"
+    },
+    "i014": {
+      "braco": "REAL",
+      "ordem": 342,
+      "nome": "Stuck in Summoner's Sanctum"
+    },
+    "i015": {
+      "braco": "M2",
+      "ordem": 342,
+      "nome": "Stuck in Summoner's Sanctum"
+    },
+    "i016": {
+      "braco": "M1",
+      "ordem": 342,
+      "nome": "Stuck in Summoner's Sanctum"
+    },
+    "i017": {
+      "braco": "M1",
+      "ordem": 157,
+      "nome": "Samut, Hazoret's Champion"
+    },
+    "i018": {
+      "braco": "REAL",
+      "ordem": 157,
+      "nome": "Samut, Hazoret's Champion"
+    },
+    "i019": {
+      "braco": "M2",
+      "ordem": 157,
+      "nome": "Samut, Hazoret's Champion"
+    },
+    "i020": {
+      "braco": "M3",
+      "ordem": 157,
+      "nome": "Samut, Hazoret's Champion"
+    },
+    "i021": {
+      "braco": "M3",
+      "ordem": 75,
+      "nome": "Wall of Kelp"
+    },
+    "i022": {
+      "braco": "REAL",
+      "ordem": 75,
+      "nome": "Wall of Kelp"
+    },
+    "i023": {
+      "braco": "M2",
+      "ordem": 75,
+      "nome": "Wall of Kelp"
+    },
+    "i024": {
+      "braco": "M1",
+      "ordem": 75,
+      "nome": "Wall of Kelp"
+    },
+    "i025": {
+      "braco": "REAL",
+      "ordem": 31,
+      "nome": "Faithbearer Paladin"
+    },
+    "i026": {
+      "braco": "M2",
+      "ordem": 31,
+      "nome": "Faithbearer Paladin"
+    },
+    "i027": {
+      "braco": "M1",
+      "ordem": 31,
+      "nome": "Faithbearer Paladin"
+    },
+    "i028": {
+      "braco": "M3",
+      "ordem": 31,
+      "nome": "Faithbearer Paladin"
+    },
+    "i029": {
+      "braco": "REAL",
+      "ordem": 278,
+      "nome": "Archival Whorl"
+    },
+    "i030": {
+      "braco": "M2",
+      "ordem": 278,
+      "nome": "Archival Whorl"
+    },
+    "i031": {
+      "braco": "M1",
+      "ordem": 278,
+      "nome": "Archival Whorl"
+    },
+    "i032": {
+      "braco": "M3",
+      "ordem": 278,
+      "nome": "Archival Whorl"
+    },
+    "i033": {
+      "braco": "M2",
+      "ordem": 419,
+      "nome": "Mirran Banesplitter"
+    },
+    "i034": {
+      "braco": "M3",
+      "ordem": 419,
+      "nome": "Mirran Banesplitter"
+    },
+    "i035": {
+      "braco": "REAL",
+      "ordem": 419,
+      "nome": "Mirran Banesplitter"
+    },
+    "i036": {
+      "braco": "M1",
+      "ordem": 419,
+      "nome": "Mirran Banesplitter"
+    },
+    "i037": {
+      "braco": "M3",
+      "ordem": 255,
+      "nome": "Gilt-Leaf Ambush"
+    },
+    "i038": {
+      "braco": "REAL",
+      "ordem": 255,
+      "nome": "Gilt-Leaf Ambush"
+    },
+    "i039": {
+      "braco": "M2",
+      "ordem": 255,
+      "nome": "Gilt-Leaf Ambush"
+    },
+    "i040": {
+      "braco": "M1",
+      "ordem": 255,
+      "nome": "Gilt-Leaf Ambush"
+    },
+    "i041": {
+      "braco": "M1",
+      "ordem": 426,
+      "nome": "Dueling Rapier"
+    },
+    "i042": {
+      "braco": "M3",
+      "ordem": 426,
+      "nome": "Dueling Rapier"
+    },
+    "i043": {
+      "braco": "M2",
+      "ordem": 426,
+      "nome": "Dueling Rapier"
+    },
+    "i044": {
+      "braco": "REAL",
+      "ordem": 426,
+      "nome": "Dueling Rapier"
+    },
+    "i045": {
+      "braco": "M2",
+      "ordem": 3,
+      "nome": "Baldin, Century Herdmaster"
+    },
+    "i046": {
+      "braco": "M3",
+      "ordem": 3,
+      "nome": "Baldin, Century Herdmaster"
+    },
+    "i047": {
+      "braco": "M1",
+      "ordem": 3,
+      "nome": "Baldin, Century Herdmaster"
+    },
+    "i048": {
+      "braco": "REAL",
+      "ordem": 3,
+      "nome": "Baldin, Century Herdmaster"
+    },
+    "i049": {
+      "braco": "REAL",
+      "ordem": 48,
+      "nome": "Faerie Duelist"
+    },
+    "i050": {
+      "braco": "M3",
+      "ordem": 48,
+      "nome": "Faerie Duelist"
+    },
+    "i051": {
+      "braco": "M2",
+      "ordem": 48,
+      "nome": "Faerie Duelist"
+    },
+    "i052": {
+      "braco": "M1",
+      "ordem": 48,
+      "nome": "Faerie Duelist"
+    },
+    "i053": {
+      "braco": "M1",
+      "ordem": 238,
+      "nome": "Electrickery"
+    },
+    "i054": {
+      "braco": "M2",
+      "ordem": 238,
+      "nome": "Electrickery"
+    },
+    "i055": {
+      "braco": "REAL",
+      "ordem": 238,
+      "nome": "Electrickery"
+    },
+    "i056": {
+      "braco": "M3",
+      "ordem": 238,
+      "nome": "Electrickery"
+    },
+    "i057": {
+      "braco": "M3",
+      "ordem": 433,
+      "nome": "The Earth Crystal"
+    },
+    "i058": {
+      "braco": "M2",
+      "ordem": 433,
+      "nome": "The Earth Crystal"
+    },
+    "i059": {
+      "braco": "M1",
+      "ordem": 433,
+      "nome": "The Earth Crystal"
+    },
+    "i060": {
+      "braco": "REAL",
+      "ordem": 433,
+      "nome": "The Earth Crystal"
+    },
+    "i061": {
+      "braco": "M1",
+      "ordem": 85,
+      "nome": "Hand of Cruelty"
+    },
+    "i062": {
+      "braco": "REAL",
+      "ordem": 85,
+      "nome": "Hand of Cruelty"
+    },
+    "i063": {
+      "braco": "M2",
+      "ordem": 85,
+      "nome": "Hand of Cruelty"
+    },
+    "i064": {
+      "braco": "M3",
+      "ordem": 85,
+      "nome": "Hand of Cruelty"
+    },
+    "i065": {
+      "braco": "M1",
+      "ordem": 176,
+      "nome": "Elvish Hydromancer"
+    },
+    "i066": {
+      "braco": "M3",
+      "ordem": 176,
+      "nome": "Elvish Hydromancer"
+    },
+    "i067": {
+      "braco": "M2",
+      "ordem": 176,
+      "nome": "Elvish Hydromancer"
+    },
+    "i068": {
+      "braco": "REAL",
+      "ordem": 176,
+      "nome": "Elvish Hydromancer"
+    },
+    "i069": {
+      "braco": "M3",
+      "ordem": 445,
+      "nome": "Nomad Stadium"
+    },
+    "i070": {
+      "braco": "M2",
+      "ordem": 445,
+      "nome": "Nomad Stadium"
+    },
+    "i071": {
+      "braco": "REAL",
+      "ordem": 445,
+      "nome": "Nomad Stadium"
+    },
+    "i072": {
+      "braco": "M1",
+      "ordem": 445,
+      "nome": "Nomad Stadium"
+    },
+    "i073": {
+      "braco": "M2",
+      "ordem": 158,
+      "nome": "Raphael, Most Attitude"
+    },
+    "i074": {
+      "braco": "REAL",
+      "ordem": 158,
+      "nome": "Raphael, Most Attitude"
+    },
+    "i075": {
+      "braco": "M1",
+      "ordem": 158,
+      "nome": "Raphael, Most Attitude"
+    },
+    "i076": {
+      "braco": "M3",
+      "ordem": 158,
+      "nome": "Raphael, Most Attitude"
+    },
+    "i077": {
+      "braco": "M1",
+      "ordem": 414,
+      "nome": "Draugr's Helm"
+    },
+    "i078": {
+      "braco": "M3",
+      "ordem": 414,
+      "nome": "Draugr's Helm"
+    },
+    "i079": {
+      "braco": "M2",
+      "ordem": 414,
+      "nome": "Draugr's Helm"
+    },
+    "i080": {
+      "braco": "REAL",
+      "ordem": 414,
+      "nome": "Draugr's Helm"
+    },
+    "i081": {
+      "braco": "M1",
+      "ordem": 17,
+      "nome": "Vampire Slayer"
+    },
+    "i082": {
+      "braco": "M3",
+      "ordem": 17,
+      "nome": "Vampire Slayer"
+    },
+    "i083": {
+      "braco": "REAL",
+      "ordem": 17,
+      "nome": "Vampire Slayer"
+    },
+    "i084": {
+      "braco": "M2",
+      "ordem": 17,
+      "nome": "Vampire Slayer"
+    },
+    "i085": {
+      "braco": "M1",
+      "ordem": 78,
+      "nome": "Rimeshield Frost Giant"
+    },
+    "i086": {
+      "braco": "M2",
+      "ordem": 78,
+      "nome": "Rimeshield Frost Giant"
+    },
+    "i087": {
+      "braco": "REAL",
+      "ordem": 78,
+      "nome": "Rimeshield Frost Giant"
+    },
+    "i088": {
+      "braco": "M3",
+      "ordem": 78,
+      "nome": "Rimeshield Frost Giant"
+    },
+    "i089": {
+      "braco": "M1",
+      "ordem": 284,
+      "nome": "Tourach's Canticle"
+    },
+    "i090": {
+      "braco": "M3",
+      "ordem": 284,
+      "nome": "Tourach's Canticle"
+    },
+    "i091": {
+      "braco": "REAL",
+      "ordem": 284,
+      "nome": "Tourach's Canticle"
+    },
+    "i092": {
+      "braco": "M2",
+      "ordem": 284,
+      "nome": "Tourach's Canticle"
+    },
+    "i093": {
+      "braco": "M1",
+      "ordem": 148,
+      "nome": "Agitator Ant"
+    },
+    "i094": {
+      "braco": "M2",
+      "ordem": 148,
+      "nome": "Agitator Ant"
+    },
+    "i095": {
+      "braco": "M3",
+      "ordem": 148,
+      "nome": "Agitator Ant"
+    },
+    "i096": {
+      "braco": "REAL",
+      "ordem": 148,
+      "nome": "Agitator Ant"
+    },
+    "i097": {
+      "braco": "M3",
+      "ordem": 133,
+      "nome": "Blood Hypnotist"
+    },
+    "i098": {
+      "braco": "M2",
+      "ordem": 133,
+      "nome": "Blood Hypnotist"
+    },
+    "i099": {
+      "braco": "M1",
+      "ordem": 133,
+      "nome": "Blood Hypnotist"
+    },
+    "i100": {
+      "braco": "REAL",
+      "ordem": 133,
+      "nome": "Blood Hypnotist"
+    },
+    "i101": {
+      "braco": "M1",
+      "ordem": 153,
+      "nome": "Goblin Commando"
+    },
+    "i102": {
+      "braco": "M2",
+      "ordem": 153,
+      "nome": "Goblin Commando"
+    },
+    "i103": {
+      "braco": "M3",
+      "ordem": 153,
+      "nome": "Goblin Commando"
+    },
+    "i104": {
+      "braco": "REAL",
+      "ordem": 153,
+      "nome": "Goblin Commando"
+    },
+    "i105": {
+      "braco": "M1",
+      "ordem": 207,
+      "nome": "Swift Response"
+    },
+    "i106": {
+      "braco": "REAL",
+      "ordem": 207,
+      "nome": "Swift Response"
+    },
+    "i107": {
+      "braco": "M3",
+      "ordem": 207,
+      "nome": "Swift Response"
+    },
+    "i108": {
+      "braco": "M2",
+      "ordem": 207,
+      "nome": "Swift Response"
+    },
+    "i109": {
+      "braco": "M2",
+      "ordem": 416,
+      "nome": "Dwarven Hammer"
+    },
+    "i110": {
+      "braco": "M3",
+      "ordem": 416,
+      "nome": "Dwarven Hammer"
+    },
+    "i111": {
+      "braco": "M1",
+      "ordem": 416,
+      "nome": "Dwarven Hammer"
+    },
+    "i112": {
+      "braco": "REAL",
+      "ordem": 416,
+      "nome": "Dwarven Hammer"
+    },
+    "i113": {
+      "braco": "M1",
+      "ordem": 344,
+      "nome": "Hazmat Suit (Used)"
+    },
+    "i114": {
+      "braco": "M2",
+      "ordem": 344,
+      "nome": "Hazmat Suit (Used)"
+    },
+    "i115": {
+      "braco": "M3",
+      "ordem": 344,
+      "nome": "Hazmat Suit (Used)"
+    },
+    "i116": {
+      "braco": "REAL",
+      "ordem": 344,
+      "nome": "Hazmat Suit (Used)"
+    },
+    "i117": {
+      "braco": "M3",
+      "ordem": 121,
+      "nome": "All-Star Kicker"
+    },
+    "i118": {
+      "braco": "M2",
+      "ordem": 121,
+      "nome": "All-Star Kicker"
+    },
+    "i119": {
+      "braco": "M1",
+      "ordem": 121,
+      "nome": "All-Star Kicker"
+    },
+    "i120": {
+      "braco": "REAL",
+      "ordem": 121,
+      "nome": "All-Star Kicker"
+    },
+    "i121": {
+      "braco": "M1",
+      "ordem": 140,
+      "nome": "Krark-Clan Stoker"
+    },
+    "i122": {
+      "braco": "M2",
+      "ordem": 140,
+      "nome": "Krark-Clan Stoker"
+    },
+    "i123": {
+      "braco": "REAL",
+      "ordem": 140,
+      "nome": "Krark-Clan Stoker"
+    },
+    "i124": {
+      "braco": "M3",
+      "ordem": 140,
+      "nome": "Krark-Clan Stoker"
+    },
+    "i125": {
+      "braco": "REAL",
+      "ordem": 108,
+      "nome": "Diregraf Horde"
+    },
+    "i126": {
+      "braco": "M2",
+      "ordem": 108,
+      "nome": "Diregraf Horde"
+    },
+    "i127": {
+      "braco": "M1",
+      "ordem": 108,
+      "nome": "Diregraf Horde"
+    },
+    "i128": {
+      "braco": "M3",
+      "ordem": 108,
+      "nome": "Diregraf Horde"
+    },
+    "i129": {
+      "braco": "REAL",
+      "ordem": 224,
+      "nome": "Sugar Rush"
+    },
+    "i130": {
+      "braco": "M3",
+      "ordem": 224,
+      "nome": "Sugar Rush"
+    },
+    "i131": {
+      "braco": "M1",
+      "ordem": 224,
+      "nome": "Sugar Rush"
+    },
+    "i132": {
+      "braco": "M2",
+      "ordem": 224,
+      "nome": "Sugar Rush"
+    },
+    "i133": {
+      "braco": "M1",
+      "ordem": 194,
+      "nome": "Earthquake Dragon"
+    },
+    "i134": {
+      "braco": "M2",
+      "ordem": 194,
+      "nome": "Earthquake Dragon"
+    },
+    "i135": {
+      "braco": "REAL",
+      "ordem": 194,
+      "nome": "Earthquake Dragon"
+    },
+    "i136": {
+      "braco": "M3",
+      "ordem": 194,
+      "nome": "Earthquake Dragon"
+    },
+    "i137": {
+      "braco": "REAL",
+      "ordem": 49,
+      "nome": "Saprazzan Breaker"
+    },
+    "i138": {
+      "braco": "M1",
+      "ordem": 49,
+      "nome": "Saprazzan Breaker"
+    },
+    "i139": {
+      "braco": "M3",
+      "ordem": 49,
+      "nome": "Saprazzan Breaker"
+    },
+    "i140": {
+      "braco": "M2",
+      "ordem": 49,
+      "nome": "Saprazzan Breaker"
+    },
+    "i141": {
+      "braco": "M1",
+      "ordem": 159,
+      "nome": "Possibility Technician"
+    },
+    "i142": {
+      "braco": "REAL",
+      "ordem": 159,
+      "nome": "Possibility Technician"
+    },
+    "i143": {
+      "braco": "M2",
+      "ordem": 159,
+      "nome": "Possibility Technician"
+    },
+    "i144": {
+      "braco": "M3",
+      "ordem": 159,
+      "nome": "Possibility Technician"
+    },
+    "i145": {
+      "braco": "REAL",
+      "ordem": 190,
+      "nome": "Treeguard Duo"
+    },
+    "i146": {
+      "braco": "M1",
+      "ordem": 190,
+      "nome": "Treeguard Duo"
+    },
+    "i147": {
+      "braco": "M2",
+      "ordem": 190,
+      "nome": "Treeguard Duo"
+    },
+    "i148": {
+      "braco": "M3",
+      "ordem": 190,
+      "nome": "Treeguard Duo"
+    },
+    "i149": {
+      "braco": "REAL",
+      "ordem": 262,
+      "nome": "Dismantling Wave"
+    },
+    "i150": {
+      "braco": "M2",
+      "ordem": 262,
+      "nome": "Dismantling Wave"
+    },
+    "i151": {
+      "braco": "M3",
+      "ordem": 262,
+      "nome": "Dismantling Wave"
+    },
+    "i152": {
+      "braco": "M1",
+      "ordem": 262,
+      "nome": "Dismantling Wave"
+    },
+    "i153": {
+      "braco": "REAL",
+      "ordem": 244,
+      "nome": "Lava Dart"
+    },
+    "i154": {
+      "braco": "M3",
+      "ordem": 244,
+      "nome": "Lava Dart"
+    },
+    "i155": {
+      "braco": "M2",
+      "ordem": 244,
+      "nome": "Lava Dart"
+    },
+    "i156": {
+      "braco": "M1",
+      "ordem": 244,
+      "nome": "Lava Dart"
+    },
+    "i157": {
+      "braco": "M3",
+      "ordem": 389,
+      "nome": "Squire's Lightblade"
+    },
+    "i158": {
+      "braco": "REAL",
+      "ordem": 389,
+      "nome": "Squire's Lightblade"
+    },
+    "i159": {
+      "braco": "M1",
+      "ordem": 389,
+      "nome": "Squire's Lightblade"
+    },
+    "i160": {
+      "braco": "M2",
+      "ordem": 389,
+      "nome": "Squire's Lightblade"
+    }
+  }
+}

@@ -1,0 +1,343 @@
+{
+  "metricas": {
+    "M1": {
+      "modelo": "M1",
+      "n_registros": 1000,
+      "n_erros": 0,
+      "n_reais": 500,
+      "n_ficticias": 500,
+      "taxa_falha_geracao": 0.0,
+      "cmc": {
+        "n": 500,
+        "mae": 1.272,
+        "rmse": 1.8579558659989748,
+        "vies": 0.032,
+        "exato": 0.33,
+        "spearman": 0.3854426327249546
+      },
+      "pt": {
+        "n": 199,
+        "mae_poder": 1.5025125628140703,
+        "mae_resistencia": 1.4974874371859297,
+        "exato": 0.10050251256281408
+      },
+      "keywords": {
+        "jaccard_medio": 0.4378333333333333,
+        "exato": 0.43,
+        "ambos_vazios": 214,
+        "jaccard_nao_vazios": 0.01719114219114219,
+        "exato_nao_vazios": 0.0034965034965034965,
+        "declaradas": 418,
+        "taxa_valida_corpus": 0.9330143540669856,
+        "taxa_no_texto": 1.0
+      },
+      "texto": {
+        "palavras": {
+          "n": 1000,
+          "media": 20.883,
+          "mediana": 19.0,
+          "desvio": 12.992617870126063
+        },
+        "distinct1": 0.07048795671120049,
+        "distinct2": 0.3221847809686667,
+        "novidade_5grama": 0.5476912474155755,
+        "memoria_jaccard_media": 0.001246134279037427,
+        "memoria_jaccard_max": 0.14285714285714285,
+        "textos_duplicados": 4,
+        "duplicados_top": [
+          {
+            "texto": "Cycling {2}.",
+            "vezes": 3
+          },
+          {
+            "texto": "Swampwalk.",
+            "vezes": 2
+          },
+          {
+            "texto": "(nenhum texto gerado)",
+            "vezes": 2
+          },
+          {
+            "texto": "Entwine {1}{R}.",
+            "vezes": 2
+          }
+        ]
+      },
+      "lint": {
+        "cartas_com_falha": 2,
+        "taxa_ok": 0.998,
+        "por_regra": {
+          "custo_sem_cor": 2
+        }
+      },
+      "alertas": {
+        "tipo_proibido_no_texto": 32
+      },
+      "por_tipo": {
+        "artifact": 120,
+        "creature": 400,
+        "enchantment": 120,
+        "instant": 120,
+        "land": 120,
+        "sorcery": 120
+      },
+      "erros_por_tipo": {},
+      "m3": null
+    },
+    "M2": {
+      "modelo": "M2",
+      "n_registros": 1000,
+      "n_erros": 0,
+      "n_reais": 500,
+      "n_ficticias": 500,
+      "taxa_falha_geracao": 0.0,
+      "cmc": {
+        "n": 500,
+        "mae": 1.272,
+        "rmse": 1.8579558659989748,
+        "vies": 0.032,
+        "exato": 0.33,
+        "spearman": 0.3854426327249546
+      },
+      "pt": {
+        "n": 199,
+        "mae_poder": 1.5025125628140703,
+        "mae_resistencia": 1.4974874371859297,
+        "exato": 0.10050251256281408
+      },
+      "keywords": {
+        "jaccard_medio": 0.4378333333333333,
+        "exato": 0.43,
+        "ambos_vazios": 214,
+        "jaccard_nao_vazios": 0.01719114219114219,
+        "exato_nao_vazios": 0.0034965034965034965,
+        "declaradas": 418,
+        "taxa_valida_corpus": 0.9330143540669856,
+        "taxa_no_texto": 0.9401913875598086
+      },
+      "texto": {
+        "palavras": {
+          "n": 1000,
+          "media": 22.067,
+          "mediana": 20.0,
+          "desvio": 13.152471193600787
+        },
+        "distinct1": 0.07132822767027688,
+        "distinct2": 0.3246784069872312,
+        "novidade_5grama": 0.681037235741202,
+        "memoria_jaccard_media": 0.001298183415604087,
+        "memoria_jaccard_max": 0.14285714285714285,
+        "textos_duplicados": 3,
+        "duplicados_top": [
+          {
+            "texto": "Cycling {2}.",
+            "vezes": 3
+          },
+          {
+            "texto": "Swampwalk.",
+            "vezes": 2
+          },
+          {
+            "texto": "Entwine {1}{R}.",
+            "vezes": 2
+          }
+        ]
+      },
+      "lint": {
+        "cartas_com_falha": 2,
+        "taxa_ok": 0.998,
+        "por_regra": {
+          "custo_sem_cor": 2
+        }
+      },
+      "alertas": {
+        "keyword_ausente_no_texto": 14,
+        "tipo_proibido_no_texto": 32
+      },
+      "por_tipo": {
+        "artifact": 120,
+        "creature": 400,
+        "enchantment": 120,
+        "instant": 120,
+        "land": 120,
+        "sorcery": 120
+      },
+      "erros_por_tipo": {},
+      "m3": null
+    },
+    "M3": {
+      "modelo": "M3",
+      "n_registros": 998,
+      "n_erros": 2,
+      "n_reais": 499,
+      "n_ficticias": 499,
+      "taxa_falha_geracao": 0.002,
+      "cmc": {
+        "n": 499,
+        "mae": 1.3507014028056112,
+        "rmse": 2.011988119344836,
+        "vies": -0.8176352705410822,
+        "exato": 0.3166332665330661,
+        "spearman": 0.35272556704965197
+      },
+      "pt": {
+        "n": 199,
+        "mae_poder": 1.2160804020100502,
+        "mae_resistencia": 1.3668341708542713,
+        "exato": 0.11055276381909548
+      },
+      "keywords": {
+        "jaccard_medio": 0.10788243152972611,
+        "exato": 0.09218436873747494,
+        "ambos_vazios": 40,
+        "jaccard_nao_vazios": 0.030137981118373274,
+        "exato_nao_vazios": 0.013071895424836602,
+        "declaradas": 1016,
+        "taxa_valida_corpus": 0.8346456692913385,
+        "taxa_no_texto": 0.0984251968503937
+      },
+      "texto": {
+        "palavras": {
+          "n": 998,
+          "media": 15.208416833667334,
+          "mediana": 14.0,
+          "desvio": 6.938521350705768
+        },
+        "distinct1": 0.07840295164053235,
+        "distinct2": 0.23349788434414667,
+        "novidade_5grama": 0.759467758444217,
+        "memoria_jaccard_media": 0.002450455064085156,
+        "memoria_jaccard_max": 0.36,
+        "textos_duplicados": 33,
+        "duplicados_top": [
+          {
+            "texto": "Tap: Add {U} to your mana pool.",
+            "vezes": 17
+          },
+          {
+            "texto": "Target player discards a card. You gain 2 life.",
+            "vezes": 15
+          },
+          {
+            "texto": "Target player discards a card.",
+            "vezes": 14
+          },
+          {
+            "texto": "Target player discards a card. You gain life equal to the discarded card's converted mana cost.",
+            "vezes": 12
+          },
+          {
+            "texto": "Tap: Add {G} to your mana pool.",
+            "vezes": 8
+          }
+        ]
+      },
+      "lint": {
+        "cartas_com_falha": 12,
+        "taxa_ok": 0.9879759519038076,
+        "por_regra": {
+          "custo_sem_cor": 10,
+          "terreno_com_pt": 2
+        }
+      },
+      "alertas": {
+        "keyword_ausente_no_texto": 823,
+        "tipo_proibido_no_texto": 6
+      },
+      "por_tipo": {
+        "artifact": 118,
+        "creature": 400,
+        "enchantment": 120,
+        "instant": 120,
+        "land": 120,
+        "sorcery": 120
+      },
+      "erros_por_tipo": {
+        "artifact": 2
+      },
+      "m3": {
+        "cmc_declarado_consistente": 0.17835671342685372,
+        "tentativas": {
+          "1": 995,
+          "2": 3
+        },
+        "falhas": [
+          {
+            "ordem": 411,
+            "nome": "Susurian Dirgecraft",
+            "tipo": "artifact",
+            "motivo": "tipo ignorado: pedido 'Artifact', veio 'Enchantment'"
+          },
+          {
+            "ordem": 911,
+            "nome": "Ripclaw Wrappings",
+            "tipo": "artifact",
+            "motivo": "tipo ignorado: pedido 'Artifact', veio 'Enchantment'"
+          }
+        ]
+      }
+    }
+  },
+  "comparacoes": {
+    "integridade_m1_m2": {
+      "cartas_pareadas": 1000,
+      "divergencias": {}
+    },
+    "m2_refino_texto": {
+      "n": 1000,
+      "delta_palavras_medio": 1.184,
+      "delta_palavras_ic95": [
+        0.8658847754563033,
+        1.5021152245436966
+      ],
+      "fracao_texto_alterado": 0.888,
+      "novos_5gramas_fracao": 0.5326787771955918,
+      "mcnemar_lint": {
+        "b01": 0,
+        "b10": 0,
+        "p": 1.0
+      }
+    },
+    "m3_vs_m1": {
+      "n": 499,
+      "cmc_mae_m1": 1.2705410821643286,
+      "cmc_mae_m3": 1.3507014028056112,
+      "bootstrap_diferenca_mae": {
+        "n": 499,
+        "diferenca": 0.08016032064128256,
+        "ic95": [
+          -0.028056112224448898,
+          0.18637274549098196
+        ]
+      },
+      "mcnemar_cmc_exato": {
+        "b01": 64,
+        "b10": 71,
+        "p": 0.6057422651905522
+      }
+    },
+    "m3_vs_m1_pt": {
+      "n": 199,
+      "erro_soma_medio_m1": 3.0,
+      "erro_soma_medio_m3": 2.5829145728643215,
+      "bootstrap_diferenca_erro": {
+        "n": 199,
+        "diferenca": -0.41708542713567837,
+        "ic95": [
+          -0.6934673366834171,
+          -0.1457286432160804
+        ]
+      },
+      "mcnemar_pt_exato": {
+        "b01": 20,
+        "b10": 18,
+        "p": 0.8714146793645341
+      }
+    },
+    "memoria_por_modelo": {
+      "M1": 0.001246134279037427,
+      "M2": 0.001298183415604087,
+      "M3": 0.002450455064085156
+    }
+  }
+}

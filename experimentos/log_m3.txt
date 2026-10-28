@@ -1,0 +1,115 @@
+[06:56:35] Iniciando M3: 1000 cartas | 0 já concluídas
+[06:57:24] Progresso: 10/1000 | ok=10 falhas=0
+[06:58:16] Progresso: 20/1000 | ok=20 falhas=0
+[06:59:08] Progresso: 30/1000 | ok=30 falhas=0
+[06:59:59] Progresso: 40/1000 | ok=40 falhas=0
+[07:00:47] Progresso: 50/1000 | ok=50 falhas=0
+[07:01:38] Progresso: 60/1000 | ok=60 falhas=0
+[07:02:30] Progresso: 70/1000 | ok=70 falhas=0
+[07:03:21] Progresso: 80/1000 | ok=80 falhas=0
+[07:04:11] Progresso: 90/1000 | ok=90 falhas=0
+[07:05:03] Progresso: 100/1000 | ok=100 falhas=0
+[07:05:52] Progresso: 110/1000 | ok=110 falhas=0
+[07:06:42] Progresso: 120/1000 | ok=120 falhas=0
+[07:07:33] Progresso: 130/1000 | ok=130 falhas=0
+[07:08:22] Progresso: 140/1000 | ok=140 falhas=0
+[07:09:11] Progresso: 150/1000 | ok=150 falhas=0
+[07:10:01] Progresso: 160/1000 | ok=160 falhas=0
+[07:10:50] Progresso: 170/1000 | ok=170 falhas=0
+[07:11:40] Progresso: 180/1000 | ok=180 falhas=0
+[07:12:30] Progresso: 190/1000 | ok=190 falhas=0
+[07:13:19] Progresso: 200/1000 | ok=200 falhas=0
+[07:14:08] Progresso: 210/1000 | ok=210 falhas=0
+[07:14:58] Progresso: 220/1000 | ok=220 falhas=0
+[07:15:47] Progresso: 230/1000 | ok=230 falhas=0
+[07:16:35] Progresso: 240/1000 | ok=240 falhas=0
+[07:17:24] Progresso: 250/1000 | ok=250 falhas=0
+[07:18:13] Progresso: 260/1000 | ok=260 falhas=0
+[07:19:02] Progresso: 270/1000 | ok=270 falhas=0
+[07:19:52] Progresso: 280/1000 | ok=280 falhas=0
+[07:20:40] Progresso: 290/1000 | ok=290 falhas=0
+[07:21:29] Progresso: 300/1000 | ok=300 falhas=0
+[07:22:19] Progresso: 310/1000 | ok=310 falhas=0
+[07:23:09] Progresso: 320/1000 | ok=320 falhas=0
+[07:24:02] Progresso: 330/1000 | ok=330 falhas=0
+[07:24:54] Progresso: 340/1000 | ok=340 falhas=0
+[07:25:46] Progresso: 350/1000 | ok=350 falhas=0
+[07:26:39] Progresso: 360/1000 | ok=360 falhas=0
+[07:27:32] Progresso: 370/1000 | ok=370 falhas=0
+[07:28:25] Progresso: 380/1000 | ok=380 falhas=0
+[07:29:16] Progresso: 390/1000 | ok=390 falhas=0
+[07:30:08] Progresso: 400/1000 | ok=400 falhas=0
+[07:31:00] Progresso: 410/1000 | ok=410 falhas=0
+[07:31:11]   [M3] Susurian Dirgecraft tentativa 1: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[07:31:16]   [M3] Susurian Dirgecraft tentativa 2: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[07:31:58] Progresso: 420/1000 | ok=419 falhas=1
+[07:32:47] Progresso: 430/1000 | ok=429 falhas=1
+[07:33:39] Progresso: 440/1000 | ok=439 falhas=1
+[07:34:27] Progresso: 450/1000 | ok=449 falhas=1
+[07:35:14] Progresso: 460/1000 | ok=459 falhas=1
+[07:36:02] Progresso: 470/1000 | ok=469 falhas=1
+[07:36:51] Progresso: 480/1000 | ok=479 falhas=1
+[07:37:38] Progresso: 490/1000 | ok=489 falhas=1
+[07:38:24] Progresso: 500/1000 | ok=499 falhas=1
+[07:39:13] Progresso: 510/1000 | ok=509 falhas=1
+[07:40:02] Progresso: 520/1000 | ok=519 falhas=1
+[07:40:53] Progresso: 530/1000 | ok=529 falhas=1
+[07:41:42] Progresso: 540/1000 | ok=539 falhas=1
+[07:42:31] Progresso: 550/1000 | ok=549 falhas=1
+[07:43:20] Progresso: 560/1000 | ok=559 falhas=1
+[07:44:09] Progresso: 570/1000 | ok=569 falhas=1
+[07:45:00] Progresso: 580/1000 | ok=579 falhas=1
+[07:45:49] Progresso: 590/1000 | ok=589 falhas=1
+[07:46:38] Progresso: 600/1000 | ok=599 falhas=1
+[07:47:30] Progresso: 610/1000 | ok=609 falhas=1
+[07:48:18] Progresso: 620/1000 | ok=619 falhas=1
+[07:49:08] Progresso: 630/1000 | ok=629 falhas=1
+[07:49:56] Progresso: 640/1000 | ok=639 falhas=1
+[07:50:46] Progresso: 650/1000 | ok=649 falhas=1
+[07:51:36] Progresso: 660/1000 | ok=659 falhas=1
+[07:52:25] Progresso: 670/1000 | ok=669 falhas=1
+[07:53:13] Progresso: 680/1000 | ok=679 falhas=1
+[07:54:01] Progresso: 690/1000 | ok=689 falhas=1
+[07:54:51] Progresso: 700/1000 | ok=699 falhas=1
+[07:55:39] Progresso: 710/1000 | ok=709 falhas=1
+[07:56:28] Progresso: 720/1000 | ok=719 falhas=1
+[07:57:18] Progresso: 730/1000 | ok=729 falhas=1
+[07:58:08] Progresso: 740/1000 | ok=739 falhas=1
+[07:58:57] Progresso: 750/1000 | ok=749 falhas=1
+[07:59:46] Progresso: 760/1000 | ok=759 falhas=1
+[08:00:36] Progresso: 770/1000 | ok=769 falhas=1
+[08:01:27] Progresso: 780/1000 | ok=779 falhas=1
+[08:02:18] Progresso: 790/1000 | ok=789 falhas=1
+[08:03:08] Progresso: 800/1000 | ok=799 falhas=1
+[08:03:59] Progresso: 810/1000 | ok=809 falhas=1
+[08:04:49] Progresso: 820/1000 | ok=819 falhas=1
+[08:05:40] Progresso: 830/1000 | ok=829 falhas=1
+[08:06:32] Progresso: 840/1000 | ok=839 falhas=1
+[08:07:26] Progresso: 850/1000 | ok=849 falhas=1
+[08:08:20] Progresso: 860/1000 | ok=859 falhas=1
+[08:09:14] Progresso: 870/1000 | ok=869 falhas=1
+[08:10:06] Progresso: 880/1000 | ok=879 falhas=1
+[08:10:58] Progresso: 890/1000 | ok=889 falhas=1
+[08:11:40]   [M3] Imposter Scroll tentativa 1: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[08:11:55] Progresso: 900/1000 | ok=899 falhas=1
+[08:12:47] Progresso: 910/1000 | ok=909 falhas=1
+[08:12:57]   [M3] Ripclaw Wrappings tentativa 1: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[08:13:02]   [M3] Ripclaw Wrappings tentativa 2: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[08:13:44] Progresso: 920/1000 | ok=918 falhas=2
+[08:14:33] Progresso: 930/1000 | ok=928 falhas=2
+[08:15:24] Progresso: 940/1000 | ok=938 falhas=2
+[08:16:13] Progresso: 950/1000 | ok=948 falhas=2
+[08:16:59] Progresso: 960/1000 | ok=958 falhas=2
+[08:17:46] Progresso: 970/1000 | ok=968 falhas=2
+[08:17:57]   [M3] Polluted Deadlands tentativa 1: erro de rede/JSON: Unterminated string starting at: line 1 column 134 (char 133)
+[08:18:45] Progresso: 980/1000 | ok=978 falhas=2
+[08:19:32] Progresso: 990/1000 | ok=988 falhas=2
+[08:19:54]   [M3] Fertile Camp tentativa 1: erro de rede/JSON: HTTP Error 500: Internal Server Error
+[08:20:25] Progresso: 1000/1000 | ok=998 falhas=2
+[08:20:25] Concluido M3. ok=998 falhas=2. Resultado em C:\Users\giih_\Downloads\mtg-card-generator\experimentos\resultados_m3.jsonl
+[12:41:39] Iniciando M3: 1000 cartas | 998 já concluídas
+[12:42:03]   [M3] Susurian Dirgecraft tentativa 1: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[12:42:08]   [M3] Susurian Dirgecraft tentativa 2: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[12:42:14]   [M3] Ripclaw Wrappings tentativa 1: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[12:42:19]   [M3] Ripclaw Wrappings tentativa 2: tipo ignorado: pedido 'Artifact', veio 'Enchantment'
+[12:42:19] Concluido M3. ok=998 falhas=4. Resultado em C:\Users\giih_\Downloads\mtg-card-generator\experimentos\resultados_m3.jsonl

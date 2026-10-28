@@ -1,0 +1,22 @@
+[05:56:09] Iniciando M1: 1000 cartas | 0 já concluídas
+[05:56:31] Progresso: 50/1000 | erros=0
+[05:56:46] Progresso: 100/1000 | erros=0
+[05:57:00] Progresso: 150/1000 | erros=0
+[05:57:14] Progresso: 200/1000 | erros=0
+[05:57:23] Progresso: 250/1000 | erros=0
+[05:57:31] Progresso: 300/1000 | erros=0
+[05:57:40] Progresso: 350/1000 | erros=0
+[05:57:49] Progresso: 400/1000 | erros=0
+[05:57:58] Progresso: 450/1000 | erros=0
+[05:58:04] Progresso: 500/1000 | erros=0
+[05:58:18] Progresso: 550/1000 | erros=0
+[05:58:32] Progresso: 600/1000 | erros=0
+[05:58:44] Progresso: 650/1000 | erros=0
+[05:58:58] Progresso: 700/1000 | erros=0
+[05:59:06] Progresso: 750/1000 | erros=0
+[05:59:14] Progresso: 800/1000 | erros=0
+[05:59:23] Progresso: 850/1000 | erros=0
+[05:59:32] Progresso: 900/1000 | erros=0
+[05:59:41] Progresso: 950/1000 | erros=0
+[05:59:48] Progresso: 1000/1000 | erros=0
+[05:59:48] Concluido M1. erros=0. Resultado em C:\Users\giih_\Downloads\mtg-card-generator\experimentos\resultados_m1.jsonl

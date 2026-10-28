@@ -136,6 +136,18 @@ versionados em `models/`.
 > As próximas etapas (classificador de cor em PyTorch como métrica de
 > diagnóstico, grafo de transições com NetworkX/Matplotlib) vão preencher o
 > que falta em `src/pipeline/`, sem alterar a interface do notebook.
+>
+> O **estudo comparativo dos três braços** (M1 = este pipeline; M2 = M1 com o
+> texto refinado por LLM; M3 = LLM pura) foi executado sobre 1.000 cartas por
+> braço. Os resultados estão em
+> [`experimentos/relatorio_metricas.md`](experimentos/relatorio_metricas.md) e
+> na seção 13 de [`experimentos/README.md`](experimentos/README.md).
+>
+> O **Modo B** (descobrir o tipo só pelo nome, 400 cartas) também foi rodado.
+> Heurística e LLM empatam na acurácia (0,512 vs 0,520; p = 0,864), com o LLM
+> mais equilibrado entre classes. Ver
+> [`experimentos/relatorio_modo_b.md`](experimentos/relatorio_modo_b.md) e a
+> seção 14 do caderno.
 
 ## Stack
 
@@ -180,6 +192,11 @@ MTGCardCreator-IFRS/
 │       └── color_pie.py                # [não usado na geração] regras de color pie, mantido como registro
 ├── assets/
 │   └── fonts/                          # fontes livres (Cinzel, EB Garamond — SIL OFL) usadas na moldura
+├── experimentos/
+│   ├── README.md                       # caderno de metodologia do estudo dos 3 modelos (decisões + base matemática)
+│   ├── run_m1.py / run_m2.py / run_m3.py / run_modo_b.py
+│   ├── avaliar.py / avaliar_modo_b.py  # métricas e relatórios (.md + .json)
+│   └── avaliacao_humana/               # P-04: protocolo cego, formulário offline e análise
 ├── requirements.txt
 └── README.md
 ```
@@ -351,6 +368,65 @@ conteúdo de comunidade sobre Magic: The Gathering. Este projeto é
 acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
 — cada usuário baixa sua própria cópia via `fetch_scryfall_data.py`.
 
+## Estudo comparativo dos modelos
+
+O estudo que compara os três braços (M1 Markov + regressão, M2 Markov + refino
+por LLM, M3 LLM pura) tem um caderno próprio, com o registro das decisões
+metodológicas e a base matemática de cada uma:
+
+- [`experimentos/README.md`](experimentos/README.md) — decisões, holdout,
+  alocação estratificada, métricas e pendências.
+- [`experimentos/relatorio_metricas.md`](experimentos/relatorio_metricas.md) —
+  tabelas geradas por `avaliar.py` a partir dos três `.jsonl`.
+- [`experimentos/relatorio_modo_b.md`](experimentos/relatorio_modo_b.md) —
+  acurácia de tipo (Modo B), gerada por `avaliar_modo_b.py`.
+
+**O que a rodada de 2026-10-25 mostrou** (1.000 cartas por braço, 500 reais +
+500 fictícias; `gemma3:4b`):
+
+- **Estrutura:** M1 e M3 empatam no custo de mana (MAE 1,27 vs 1,35;
+  Δ = 0,08, IC95 −0,03 a 0,19). No P/T o M3 erra menos em magnitude, mas
+  acerta o par exato com a mesma frequência do M1 (11,1% vs 10,1%).
+- **Texto:** o M2 ganha fluência e novidade (5-gramas novos: 0,681 vs 0,548)
+  sem piorar o lint — mas o refino muda mecânicas que o prompt manda
+  preservar. O M3 é o mais "novo" (0,759) e o mais curto, porém colapsa em
+  templates (33 textos duplicados, 17 deles a mesma habilidade de mana).
+- **Coerência:** M1/M2 passam no lint em 99,8% das cartas; o M3 em 98,8% e
+  falha em coerência interna — o CMC que declara bate com o próprio custo em
+  só 17,8% dos casos, e 82% das cartas listam keyword que não aparece no
+  texto.
+- **Memorização:** baixa nos três braços (Jaccard médio de 5-gramas ≤ 0,0025
+  contra a carta real pareada); o M3 não decalca, parafraseia.
+
+**Conclusão curta:** não há vencedor em todas as dimensões. O M1 é o mais
+consistente, o M2 é o melhor texto, e o M3 chega perto na estrutura mas falha
+em coerência interna. Detalhes, ICs e testes pareados no §13 do caderno.
+
+**Modo B — descobrir o tipo só pelo nome** (400 cartas, entrada apenas o nome;
+M1/M2 são um único braço porque o refino do M2 só toca texto):
+
+- Acurácia efetiva praticamente empatada: heurística **0,512** vs LLM **0,520**
+  (McNemar p = 0,864); baseline de maioria na amostra = 0,383.
+- **Reponderado pelo prior do corpus** (55,7% criaturas), os dois vão para
+  ~0,59 e a margem sobre "sempre criatura" cai de 13 para ~3 p.p. — parte do
+  acerto é o prior de criaturas.
+- O LLM é mais equilibrado entre as seis classes (macro-F1 0,431 vs 0,393),
+  mas a heurística ganha em criatura e artefato; o LLM ganha em instantânea e
+  terreno.
+- O bloco instantânea/feitiço/encantamento (34,3% da amostra) não é separado
+  por nenhum dos dois: o nome quase não carrega essa informação.
+- Sem sinal forte de memorização: nos nomes fictícios os dois empatam em
+  0,490; o ganho em nomes reais é da mesma ordem para ambos.
+
+Detalhes, matrizes de confusão e McNemar por subconjunto no §14 do caderno e em
+[`experimentos/relatorio_modo_b.md`](experimentos/relatorio_modo_b.md).
+
+**Avaliação humana (P-04)** — o teste que fecha o buraco do "realista":
+protocolo cego com 40 blocos de 4 cartas (M1, M2, M3 e a carta real como
+âncora), formulário offline e script de análise prontos. Falta a coleta.
+Ver [`experimentos/avaliacao_humana/protocolo.md`](experimentos/avaliacao_humana/protocolo.md)
+e §15 do caderno.
+
 ## Próximos passos
 
 - [x] ~~Mapeamento de mecânicas a partir do nome~~ — mantido em
@@ -391,6 +467,14 @@ acadêmico, sem fins comerciais, e os dados brutos não são redistribuídos
       gradiente da cor, janela da arte, caixa de tipo, caixa de texto
       translúcida e selo de P/T, com fontes livres (Cinzel/EB Garamond) —
       `src/pipeline/imagem.py`
+- [x] **Estudo comparativo dos três braços** (M1 Markov + regressão, M2 com
+      refino de texto, M3 LLM pura) sobre 1.000 cartas por braço — resultados
+      em `experimentos/relatorio_metricas.md` e §13 do caderno
+- [x] **Modo B — inferência de tipo pelo nome** (400 cartas, dois braços:
+      heurística × LLM) — `experimentos/relatorio_modo_b.md` e §14 do caderno
+- [ ] **Avaliação humana cega (P-04)** — protocolo, amostra de 40 blocos e
+      formulário offline prontos; falta recrutar 3–5 avaliadores e coletar —
+      `experimentos/avaliacao_humana/`
 - [ ] Classificador de cor em PyTorch — não mais como filtro, mas como
       *métrica de diagnóstico* ("o quão on-color este texto gerado
       ficou?"), compatível com a escolha de deixar a geração livre

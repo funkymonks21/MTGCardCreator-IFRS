@@ -1,0 +1,18 @@
+[13:34:53] Iniciando Modo B: 400 cartas (semente da amostra 20261025) | 0 já concluídas
+[13:36:04] Progresso: 25/400
+[13:37:06] Progresso: 50/400
+[13:38:09] Progresso: 75/400
+[13:39:12] Progresso: 100/400
+[13:40:15] Progresso: 125/400
+[13:41:17] Progresso: 150/400
+[13:42:20] Progresso: 175/400
+[13:43:24] Progresso: 200/400
+[13:44:26] Progresso: 225/400
+[13:45:29] Progresso: 250/400
+[13:46:32] Progresso: 275/400
+[13:47:34] Progresso: 300/400
+[13:48:36] Progresso: 325/400
+[13:49:39] Progresso: 350/400
+[13:50:42] Progresso: 375/400
+[13:51:45] Progresso: 400/400
+[13:51:45] Concluido Modo B. Resultado em C:\Users\giih_\Downloads\mtg-card-generator\experimentos\resultados_modo_b.jsonl

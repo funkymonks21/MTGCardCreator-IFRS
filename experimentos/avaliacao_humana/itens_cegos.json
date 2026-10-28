@@ -1,0 +1,1447 @@
+{
+  "seed": 20261026,
+  "n_blocos": 40,
+  "instrucoes": "Cada bloco traz 4 versões do MESMO nome de carta: três geradas por modelos e uma que é a carta real. Não há identificação de qual é qual.",
+  "itens": [
+    {
+      "item_id": "i001",
+      "bloco": 1,
+      "nome": "Nightscape Familiar",
+      "custo": "{1}{B}",
+      "tipo_linha": "Creature — Zombie",
+      "texto": "When Shadowed Shade enters the battlefield, you may discard a card. If you do, it gets +2/+2.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i002",
+      "bloco": 1,
+      "nome": "Nightscape Familiar",
+      "custo": "{1}{B}",
+      "tipo_linha": "Creature — Zombie",
+      "texto": "Blue spells and red spells you cast cost {1} less to cast.\n{1}{B}: Regenerate this creature.",
+      "pt": "1/1"
+    },
+    {
+      "item_id": "i003",
+      "bloco": 1,
+      "nome": "Nightscape Familiar",
+      "custo": "{2}{B}",
+      "tipo_linha": "Creature — Giant",
+      "texto": "When Nightscape Familiar enters the battlefield, create a food token. It has no power or toughness. It disappears at the end of the turn.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i004",
+      "bloco": 1,
+      "nome": "Nightscape Familiar",
+      "custo": "{2}{B}",
+      "tipo_linha": "Creature — Giant",
+      "texto": "When Nightscape Familiar enters, create a food: Until end of turn.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i005",
+      "bloco": 2,
+      "nome": "Rust Monster",
+      "custo": "{2}{R}{R}",
+      "tipo_linha": "Creature — Jackal Warrior",
+      "texto": "When this creature loses 2 life, sacrifice it.\nWhenever you sacrifice a number of copies, draw a card.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i006",
+      "bloco": 2,
+      "nome": "Rust Monster",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — monster",
+      "texto": "When Rust Maw enters the battlefield, target creature gets -2/-2 until end of turn.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i007",
+      "bloco": 2,
+      "nome": "Rust Monster",
+      "custo": "{2}{R}{R}",
+      "tipo_linha": "Creature — Jackal Warrior",
+      "texto": "When loses 2 life.\nWhenever you sacrifice a number of the copies.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i008",
+      "bloco": 2,
+      "nome": "Rust Monster",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Beast",
+      "texto": "First strike\nSacrifice an artifact: This creature gets +2/+0 until end of turn.",
+      "pt": "2/1"
+    },
+    {
+      "item_id": "i009",
+      "bloco": 3,
+      "nome": "Dusk Rose Reliquary",
+      "custo": "{2}{W}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "{4}{W} if you do, discard your hand: Draw a card.\nIf a creature is a phyrexian in addition to its other types and it has flying.\nEquipped creature gets +0/+2, is a Wizard in addition to its other types, and has \"Whenever this creature attacks, exile up to one target instant or sorcery card from defending player's graveyard. If you do, copy it. You may cast the copy by paying {3} rather than paying its mana cost.\"\nEquip {2}",
+      "pt": ""
+    },
+    {
+      "item_id": "i010",
+      "bloco": 3,
+      "nome": "Dusk Rose Reliquary",
+      "custo": "{2}{W}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "{4}{W} If you do, discard your hand: Draw a card.\nIf a creature is Phyrexian and has flying, equipped creature gets +0/+2, is a Wizard and has “Whenever this creature attacks, exile up to one target instant or sorcery card from defending player’s graveyard. If you do, copy it. You may cast the copy by paying {3} rather than paying its mana cost.”\nEquip {2}",
+      "pt": ""
+    },
+    {
+      "item_id": "i011",
+      "bloco": 3,
+      "nome": "Dusk Rose Reliquary",
+      "custo": "{W}",
+      "tipo_linha": "Artifact",
+      "texto": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nWard {2}\nWhen this artifact enters, exile target artifact or creature an opponent controls until this artifact leaves the battlefield.",
+      "pt": ""
+    },
+    {
+      "item_id": "i012",
+      "bloco": 3,
+      "nome": "Dusk Rose Reliquary",
+      "custo": "{2}{W}",
+      "tipo_linha": "Artifact — Reliquary",
+      "texto": "When Dusk Rose Reliquary enters the battlefield, you may exile target artifact or enchantment. If you do, you lose 2 life.",
+      "pt": ""
+    },
+    {
+      "item_id": "i013",
+      "bloco": 4,
+      "nome": "Stuck in Summoner's Sanctum",
+      "custo": "{U}",
+      "tipo_linha": "Enchantment — uras",
+      "texto": "Whenever a player casts a spell, you may exile that spell. If you do, it doesn't untap during their next upkeep. Trumps all other URA spells.",
+      "pt": ""
+    },
+    {
+      "item_id": "i014",
+      "bloco": 4,
+      "nome": "Stuck in Summoner's Sanctum",
+      "custo": "{2}{U}",
+      "tipo_linha": "Enchantment — Aura",
+      "texto": "Flash\nEnchant artifact or creature\nWhen this Aura enters, tap enchanted permanent.\nEnchanted permanent doesn't untap during its controller's untap step and its activated abilities can't be activated.",
+      "pt": ""
+    },
+    {
+      "item_id": "i015",
+      "bloco": 4,
+      "nome": "Stuck in Summoner's Sanctum",
+      "custo": "{1}{U}",
+      "tipo_linha": "Enchantment — Aura",
+      "texto": "Enchant a creature.\nYou control the enchanted creature.\nYou may place a quest counter on it.",
+      "pt": ""
+    },
+    {
+      "item_id": "i016",
+      "bloco": 4,
+      "nome": "Stuck in Summoner's Sanctum",
+      "custo": "{1}{U}",
+      "tipo_linha": "Enchantment — Aura",
+      "texto": "Enchant creature\nYou control enchanted creature.\nIii you may put a quest counter on This creature.",
+      "pt": ""
+    },
+    {
+      "item_id": "i017",
+      "bloco": 5,
+      "nome": "Samut, Hazoret's Champion",
+      "custo": "{3}{R}{R}",
+      "tipo_linha": "Creature — Goblin Merfolk",
+      "texto": "Whenever one or more creatures you control attack, alibou deals x damage to any target '' for an artifact.",
+      "pt": "5/5"
+    },
+    {
+      "item_id": "i018",
+      "bloco": 5,
+      "nome": "Samut, Hazoret's Champion",
+      "custo": "{1}{R}",
+      "tipo_linha": "Legendary Creature — Human Warrior Cleric",
+      "texto": "Creatures you control have haste.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i019",
+      "bloco": 5,
+      "nome": "Samut, Hazoret's Champion",
+      "custo": "{3}{R}{R}",
+      "tipo_linha": "Creature — Goblin Merfolk",
+      "texto": "Whenever one or more creatures you control attack, Alibou deals x damage to any artifact.",
+      "pt": "5/5"
+    },
+    {
+      "item_id": "i020",
+      "bloco": 5,
+      "nome": "Samut, Hazoret's Champion",
+      "custo": "{R}",
+      "tipo_linha": "Creature — human",
+      "texto": "When Kael, Ember's Fury enters the battlefield, deal 1 damage to each creature.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i021",
+      "bloco": 6,
+      "nome": "Wall of Kelp",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — wall",
+      "texto": "Defender. When Wall of Kelp attacks, you may pay {1}. If you do, target creature attacks this turn.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i022",
+      "bloco": 6,
+      "nome": "Wall of Kelp",
+      "custo": "{U}{U}",
+      "tipo_linha": "Creature — Plant Wall",
+      "texto": "Defender (This creature can't attack.)\n{U}{U}, {T}: Create a 0/1 blue Plant Wall creature token with defender named Kelp.",
+      "pt": "0/3"
+    },
+    {
+      "item_id": "i023",
+      "bloco": 6,
+      "nome": "Wall of Kelp",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — Human Pirate",
+      "texto": "Whenever Wall of Kelp enters or attacks, target attacking creature connives at x, where x is the greatest mana value of any mana attached to Wall of Kelp.\n\n{U}{B}{R}: Add {G}, {W}, or {U}.",
+      "pt": "0/2"
+    },
+    {
+      "item_id": "i024",
+      "bloco": 6,
+      "nome": "Wall of Kelp",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — Human Pirate",
+      "texto": "Whenever Wall of Kelp enter or attack, target attacking creature connives x, where x is the greatest mana value among.\n{U}{B}{R}: Add {G}, {W}, or {U}.",
+      "pt": "0/2"
+    },
+    {
+      "item_id": "i025",
+      "bloco": 7,
+      "nome": "Faithbearer Paladin",
+      "custo": "{4}{W}",
+      "tipo_linha": "Creature — Human Knight",
+      "texto": "Lifelink (Damage dealt by this creature also causes you to gain that much life.)",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i026",
+      "bloco": 7,
+      "nome": "Faithbearer Paladin",
+      "custo": "{3}{W}",
+      "tipo_linha": "Creature — Human Cleric",
+      "texto": "Flying, Vigilance.\nWhen Faithbearer Paladin enters the battlefield, it deals 5 damage to target creature.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i027",
+      "bloco": 7,
+      "nome": "Faithbearer Paladin",
+      "custo": "{3}{W}",
+      "tipo_linha": "Creature — Human Cleric",
+      "texto": "Flying, Vigilance\nFaithbearer Paladin 's power.\nThis creature gets of turn, This creature deals 5 damage to that creature.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i028",
+      "bloco": 7,
+      "nome": "Faithbearer Paladin",
+      "custo": "{2}{W}",
+      "tipo_linha": "Creature — Paladin",
+      "texto": "Whenever you cast an instant or sorcery spell, Faithbearer Vigil gains first strike and vigilance.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i029",
+      "bloco": 8,
+      "nome": "Archival Whorl",
+      "custo": "{3}{U}{U}",
+      "tipo_linha": "Sorcery",
+      "texto": "Gift a Rhystic Study\nShuffle your hand and graveyard into your library, then draw seven cards. If the gift wasn't promised, each other player also shuffles their hand and graveyard into their library, then draws seven cards.",
+      "pt": ""
+    },
+    {
+      "item_id": "i030",
+      "bloco": 8,
+      "nome": "Archival Whorl",
+      "custo": "{2}{U}",
+      "tipo_linha": "Sorcery",
+      "texto": "Assist. Reveal a card from your hand if you control that permanent, except the token has the same mode.",
+      "pt": ""
+    },
+    {
+      "item_id": "i031",
+      "bloco": 8,
+      "nome": "Archival Whorl",
+      "custo": "{2}{U}",
+      "tipo_linha": "Sorcery",
+      "texto": "Assist.\nReveal a card from your hand if you controlled that permanent, except the token has the same mode more.",
+      "pt": ""
+    },
+    {
+      "item_id": "i032",
+      "bloco": 8,
+      "nome": "Archival Whorl",
+      "custo": "{1}{U}",
+      "tipo_linha": "Sorcery — Control Tempo",
+      "texto": "Target creature gets Reach until end of turn. Exile Chronal Echo.",
+      "pt": ""
+    },
+    {
+      "item_id": "i033",
+      "bloco": 9,
+      "nome": "Mirran Banesplitter",
+      "custo": "{1}{R}",
+      "tipo_linha": "Artifact — Vehicle",
+      "texto": "{T}: Add {R}.\nCrew 3.",
+      "pt": "5/5"
+    },
+    {
+      "item_id": "i034",
+      "bloco": 9,
+      "nome": "Mirran Banesplitter",
+      "custo": "{2}{R}",
+      "tipo_linha": "Artifact — Rupture",
+      "texto": "When Crimson Rupture enters the battlefield, exile target creature. If you control another artifact, you may pay 1. If you do, return the exiled creature to the battlefield.",
+      "pt": ""
+    },
+    {
+      "item_id": "i035",
+      "bloco": 9,
+      "nome": "Mirran Banesplitter",
+      "custo": "{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Flash\nWhen this Equipment enters, attach it to target creature you control.\nEquipped creature gets +2/+0.\nEquip {3} ({3}: Attach to target creature you control. Equip only as a sorcery.)",
+      "pt": ""
+    },
+    {
+      "item_id": "i036",
+      "bloco": 9,
+      "nome": "Mirran Banesplitter",
+      "custo": "{1}{R}",
+      "tipo_linha": "Artifact — Vehicle",
+      "texto": "{T}: Add {R}.\nCrew 3",
+      "pt": "5/5"
+    },
+    {
+      "item_id": "i037",
+      "bloco": 10,
+      "nome": "Gilt-Leaf Ambush",
+      "custo": "{2}{G}",
+      "tipo_linha": "Instant — Sorcery",
+      "texto": "Target player discards a card. Exile up to two target nonland permanent.",
+      "pt": ""
+    },
+    {
+      "item_id": "i038",
+      "bloco": 10,
+      "nome": "Gilt-Leaf Ambush",
+      "custo": "{2}{G}",
+      "tipo_linha": "Kindred Instant — Elf",
+      "texto": "Create two 1/1 green Elf Warrior creature tokens. Clash with an opponent. If you win, those creatures gain deathtouch until end of turn. (Each clashing player reveals the top card of their library, then puts that card on their choice of the top or bottom. A player wins if their card had a greater mana value. Any amount of damage a creature with deathtouch deals to a creature is enough to destroy it.)",
+      "pt": ""
+    },
+    {
+      "item_id": "i039",
+      "bloco": 10,
+      "nome": "Gilt-Leaf Ambush",
+      "custo": "{G}",
+      "tipo_linha": "Instant",
+      "texto": "Target creature you control gets +3/+3 until end of turn 4 or until this turn ends. It exile instead.",
+      "pt": ""
+    },
+    {
+      "item_id": "i040",
+      "bloco": 10,
+      "nome": "Gilt-Leaf Ambush",
+      "custo": "{G}",
+      "tipo_linha": "Instant",
+      "texto": "Target creature you control gets +3/+3 until end of turn 4 or 's die this turn, exile it instead.",
+      "pt": ""
+    },
+    {
+      "item_id": "i041",
+      "bloco": 11,
+      "nome": "Dueling Rapier",
+      "custo": "{2}{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Equipped creature has {2}: Dueling Rapier gets +1/+0 and has flying.\nAs long as This creature is on the battlefield, put all cards underneath it.\nEquip {2}",
+      "pt": ""
+    },
+    {
+      "item_id": "i042",
+      "bloco": 11,
+      "nome": "Dueling Rapier",
+      "custo": "{3}{R}",
+      "tipo_linha": "Artifact — Weapon",
+      "texto": "Whenever Crimson Rapier deals combat damage to a player, that player discards a card.",
+      "pt": ""
+    },
+    {
+      "item_id": "i043",
+      "bloco": 11,
+      "nome": "Dueling Rapier",
+      "custo": "{2}{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Equipped creature has +1/+0 and has flying.\nAs long as this creature is on the battlefield, put all cards underneath it.\nEquip {2}.",
+      "pt": ""
+    },
+    {
+      "item_id": "i044",
+      "bloco": 11,
+      "nome": "Dueling Rapier",
+      "custo": "{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Flash\nWhen this Equipment enters, attach it to target creature you control.\nEquipped creature gets +2/+0.\nEquip {4} ({4}: Attach to target creature you control. Equip only as a sorcery.)",
+      "pt": ""
+    },
+    {
+      "item_id": "i045",
+      "bloco": 12,
+      "nome": "Baldin, Century Herdmaster",
+      "custo": "{2}{W}{W}",
+      "tipo_linha": "Creature — Minotaur Soldier",
+      "texto": "Haste, Flying.\nAs a historic permanent you control enters, you may remove an oil counter from target creature.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i046",
+      "bloco": 12,
+      "nome": "Baldin, Century Herdmaster",
+      "custo": "{2}{W}",
+      "tipo_linha": "Creature — human",
+      "texto": "Whenever Baldin, Steadfast Guardian attacks, you may gain life equal to its toughness.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i047",
+      "bloco": 12,
+      "nome": "Baldin, Century Herdmaster",
+      "custo": "{2}{W}{W}",
+      "tipo_linha": "Creature — Minotaur Soldier",
+      "texto": "Haste, Flying\nAs a historic permanent you control enters, you may remove an oil counter on target creature.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i048",
+      "bloco": 12,
+      "nome": "Baldin, Century Herdmaster",
+      "custo": "{4}{W}{W}",
+      "tipo_linha": "Legendary Creature — Human Warrior",
+      "texto": "During your turn, each creature assigns combat damage equal to its toughness rather than its power.\nWhenever Baldin attacks, up to one hundred target creatures each get +0/+X until end of turn, where X is the number of cards in your hand.",
+      "pt": "0/7"
+    },
+    {
+      "item_id": "i049",
+      "bloco": 13,
+      "nome": "Faerie Duelist",
+      "custo": "{1}{U}",
+      "tipo_linha": "Creature — Faerie Rogue",
+      "texto": "Flash\nFlying\nWhen this creature enters, target creature an opponent controls gets -2/-0 until end of turn.",
+      "pt": "1/2"
+    },
+    {
+      "item_id": "i050",
+      "bloco": 13,
+      "nome": "Faerie Duelist",
+      "custo": "{1}{U}",
+      "tipo_linha": "Creature — Elf",
+      "texto": "Whenever Faelar, Azure Blade attacks, you may pay 1. If you do, Faelar, Azure Blade gets +1/+1 until the end of turn.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i051",
+      "bloco": 13,
+      "nome": "Faerie Duelist",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — Beast Noble",
+      "texto": "As long as there are four or more tokens with lifelink equal to its mana value among equipment attached to it.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i052",
+      "bloco": 13,
+      "nome": "Faerie Duelist",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — Beast Noble",
+      "texto": "As long as there are four or more tokens with lifelink equal to its mana value among equipment attached to.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i053",
+      "bloco": 14,
+      "nome": "Electrickery",
+      "custo": "{1}{R}{R}",
+      "tipo_linha": "Instant",
+      "texto": "Target creature gets +3/+0 until end of turn.\nThis creature deals 1 damage to each creature and each player if you cast This creature during your main phase, This creature.",
+      "pt": ""
+    },
+    {
+      "item_id": "i054",
+      "bloco": 14,
+      "nome": "Electrickery",
+      "custo": "{1}{R}{R}",
+      "tipo_linha": "Instant",
+      "texto": "Target creature gets +3/+0 until end of turn.\nIf you cast this instant during your main phase, it deals 1 damage to each creature and each player.",
+      "pt": ""
+    },
+    {
+      "item_id": "i055",
+      "bloco": 14,
+      "nome": "Electrickery",
+      "custo": "{R}",
+      "tipo_linha": "Instant",
+      "texto": "Electrickery deals 1 damage to target creature you don't control.\nOverload {1}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+      "pt": ""
+    },
+    {
+      "item_id": "i056",
+      "bloco": 14,
+      "nome": "Electrickery",
+      "custo": "{1}{R}",
+      "tipo_linha": "Instant — burst",
+      "texto": "Deal 1 damage to target creature or player.",
+      "pt": ""
+    },
+    {
+      "item_id": "i057",
+      "bloco": 15,
+      "nome": "The Earth Crystal",
+      "custo": "{2}{G}",
+      "tipo_linha": "Artifact — resonator",
+      "texto": "Quando Veridian Resonator entra no campo de batalha, você pode descartar uma carta. Se você fizer isso, explore o topo do seu deck.",
+      "pt": ""
+    },
+    {
+      "item_id": "i058",
+      "bloco": 15,
+      "nome": "The Earth Crystal",
+      "custo": "{2}{G}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "That player takes stacked combat damage from sources this turn.\nEquipped creature gets +2/+0 and has “Whenever this creature attacks, it gains your choice of trample or deathtouch until end of turn.”\nEquip {3}.",
+      "pt": ""
+    },
+    {
+      "item_id": "i059",
+      "bloco": 15,
+      "nome": "The Earth Crystal",
+      "custo": "{2}{G}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "That person who has all combat damage that would be dealt this turn by a source would die you stacked.\nEquipped creature gets +2/+0 and has \"Whenever this creature attacks, it gains your choice of trample or deathtouch until end of turn.\"\nEquip {3}.",
+      "pt": ""
+    },
+    {
+      "item_id": "i060",
+      "bloco": 15,
+      "nome": "The Earth Crystal",
+      "custo": "{2}{G}{G}",
+      "tipo_linha": "Legendary Artifact",
+      "texto": "Green spells you cast cost {1} less to cast.\nIf one or more +1/+1 counters would be put on a creature you control, twice that many +1/+1 counters are put on that creature instead.\n{4}{G}{G}, {T}: Distribute two +1/+1 counters among one or two target creatures you control.",
+      "pt": ""
+    },
+    {
+      "item_id": "i061",
+      "bloco": 16,
+      "nome": "Hand of Cruelty",
+      "custo": "{2}{B}{B}",
+      "tipo_linha": "Creature — Goblin Shaman",
+      "texto": "Flash, First strike\nHand of Cruelty escapes with two +1/+1 counters on the bottom of your graveyard: Hand of Cruelty gains flying until end of turn.\nWhenever a player, search your library for a dragons you control deals combat damage to a player.\nAt the beginning of your upkeep, tap This creature unless you pay {B}.",
+      "pt": "4/3"
+    },
+    {
+      "item_id": "i062",
+      "bloco": 16,
+      "nome": "Hand of Cruelty",
+      "custo": "{B}{B}",
+      "tipo_linha": "Creature — Human Samurai",
+      "texto": "Protection from white\nBushido 1 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i063",
+      "bloco": 16,
+      "nome": "Hand of Cruelty",
+      "custo": "{2}{B}{B}",
+      "tipo_linha": "Creature — Goblin Shaman",
+      "texto": "Flash, First Strike\nWhen Hand of Cruelty enters the battlefield, put two +1/+1 counters on it and exile Hand of Cruelty. Hand of Cruelty gains flying until end of turn.\nWhenever a player searches their library for a Dragon you control that player deals combat damage to a player.\nAt the beginning of your upkeep, tap this creature unless you pay {B}.",
+      "pt": "4/3"
+    },
+    {
+      "item_id": "i064",
+      "bloco": 16,
+      "nome": "Hand of Cruelty",
+      "custo": "{1}{B}",
+      "tipo_linha": "Creature — zombie",
+      "texto": "When Hand of Cruelty enters the battlefield, choose a player. That player loses 2 life.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i065",
+      "bloco": 17,
+      "nome": "Elvish Hydromancer",
+      "custo": "{2}{G}{G}",
+      "tipo_linha": "Creature — Elf Scout",
+      "texto": "At the beginning of your upkeep, create x 1/1 black fungus counter from a creature you control.\nWhenever This creature blocks or becomes a 4/4 elemental creature in addition to its owner 's hand.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i066",
+      "bloco": 17,
+      "nome": "Elvish Hydromancer",
+      "custo": "{1}{G}",
+      "tipo_linha": "Creature — Elf",
+      "texto": "When Sylvan Streamweaver enters the battlefield, you gain 2 life.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i067",
+      "bloco": 17,
+      "nome": "Elvish Hydromancer",
+      "custo": "{2}{G}{G}",
+      "tipo_linha": "Creature — Elf Scout",
+      "texto": "At the beginning of your upkeep, create a 1/1 black fungus counter from a creature you control.\nWhenever this creature blocks or becomes a 4/4 elemental creature, create a 1/1 black fungus counter.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i068",
+      "bloco": 17,
+      "nome": "Elvish Hydromancer",
+      "custo": "{2}{G}",
+      "tipo_linha": "Creature — Elf Wizard",
+      "texto": "Kicker {3}{U} (You may pay an additional {3}{U} as you cast this spell.)\nWhen this creature enters, if it was kicked, create a token that's a copy of target creature you control.",
+      "pt": "3/2"
+    },
+    {
+      "item_id": "i069",
+      "bloco": 18,
+      "nome": "Nomad Stadium",
+      "custo": "",
+      "tipo_linha": "Land — Plains",
+      "texto": "Tap: Add C{W} to your mana pool.",
+      "pt": ""
+    },
+    {
+      "item_id": "i070",
+      "bloco": 18,
+      "nome": "Nomad Stadium",
+      "custo": "",
+      "tipo_linha": "Land",
+      "texto": "Nomad Stadium enters tapped.\n{T}: Add {G} to your mana pool or {U} to your mana pool.",
+      "pt": ""
+    },
+    {
+      "item_id": "i071",
+      "bloco": 18,
+      "nome": "Nomad Stadium",
+      "custo": "",
+      "tipo_linha": "Land",
+      "texto": "{T}: Add {W}. This land deals 1 damage to you.\nThreshold — {W}, {T}, Sacrifice this land: You gain 4 life. Activate only if there are seven or more cards in your graveyard.",
+      "pt": ""
+    },
+    {
+      "item_id": "i072",
+      "bloco": 18,
+      "nome": "Nomad Stadium",
+      "custo": "",
+      "tipo_linha": "Land",
+      "texto": "Nomad Stadium enters tapped.\n{T}: Add {G} or {U}.",
+      "pt": ""
+    },
+    {
+      "item_id": "i073",
+      "bloco": 19,
+      "nome": "Raphael, Most Attitude",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Dog",
+      "texto": "When it enters the battlefield, destroy up to one target artifact.",
+      "pt": "4/3"
+    },
+    {
+      "item_id": "i074",
+      "bloco": 19,
+      "nome": "Raphael, Most Attitude",
+      "custo": "{3}{R}",
+      "tipo_linha": "Legendary Creature — Mutant Ninja Turtle",
+      "texto": "Menace (This creature can't be blocked except by two or more creatures.)\nAlliance — Whenever another creature you control enters, you may exile the top card of your library.\nWhenever Raphael attacks, until end of turn, you may play a card exiled with Raphael.",
+      "pt": "4/3"
+    },
+    {
+      "item_id": "i075",
+      "bloco": 19,
+      "nome": "Raphael, Most Attitude",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Dog",
+      "texto": "When controls until end of turn.\nI, ii destroy up to one target artifact.",
+      "pt": "4/3"
+    },
+    {
+      "item_id": "i076",
+      "bloco": 19,
+      "nome": "Raphael, Most Attitude",
+      "custo": "{R}",
+      "tipo_linha": "Creature — Dragon",
+      "texto": "When Ragefire Drake enters the battlefield, it deals 1 damage to each other creature.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i077",
+      "bloco": 20,
+      "nome": "Draugr's Helm",
+      "custo": "{2}{B}",
+      "tipo_linha": "Artifact",
+      "texto": "When this vehicle.\nWhen This creature is dealt damage this way, destroy it.",
+      "pt": ""
+    },
+    {
+      "item_id": "i078",
+      "bloco": 20,
+      "nome": "Draugr's Helm",
+      "custo": "{1}{B}",
+      "tipo_linha": "Artifact — Artifact",
+      "texto": "Whenever you cast an instant or sorcery spell, you may exile target artifact or creature. It stays until end of turn.",
+      "pt": ""
+    },
+    {
+      "item_id": "i079",
+      "bloco": 20,
+      "nome": "Draugr's Helm",
+      "custo": "{2}{B}",
+      "tipo_linha": "Artifact",
+      "texto": "Quando este artefato entra em jogo, destrua-o. Quando esta criatura recebe dano desta forma, destrua-a.",
+      "pt": ""
+    },
+    {
+      "item_id": "i080",
+      "bloco": 20,
+      "nome": "Draugr's Helm",
+      "custo": "{1}{B}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "When this Equipment enters, you may pay {2}{B}. If you do, create a 2/2 black Zombie Berserker creature token, then attach this Equipment to it.\nEquipped creature gets +2/+2 and has menace. (It can't be blocked except by two or more creatures.)\nEquip {4}",
+      "pt": ""
+    },
+    {
+      "item_id": "i081",
+      "bloco": 21,
+      "nome": "Vampire Slayer",
+      "custo": "{4}{W}",
+      "tipo_linha": "Creature — Soldier",
+      "texto": "Flying, Ward {2}\n{1}{R}{W}: Creature tokens you control gain indestructible until end of your library for each card type.\nEquipped creature gets +1/+1 ''.",
+      "pt": "5/5"
+    },
+    {
+      "item_id": "i082",
+      "bloco": 21,
+      "nome": "Vampire Slayer",
+      "custo": "{1}{W}",
+      "tipo_linha": "Creature — Vampire",
+      "texto": "When Silverfang enters the battlefield, you may target another creature.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i083",
+      "bloco": 21,
+      "nome": "Vampire Slayer",
+      "custo": "{1}{W}",
+      "tipo_linha": "Creature — Human Soldier",
+      "texto": "Whenever this creature deals damage to a Vampire, destroy that creature.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i084",
+      "bloco": 21,
+      "nome": "Vampire Slayer",
+      "custo": "{4}{W}",
+      "tipo_linha": "Creature — Soldier",
+      "texto": "Flying, Ward {2}\n{1}{R}{W}: Creature tokens you control gain indestructible until end of your library for each card type.\nEquipped creature gets +1/+1.",
+      "pt": "5/5"
+    },
+    {
+      "item_id": "i085",
+      "bloco": 22,
+      "nome": "Rimeshield Frost Giant",
+      "custo": "{3}{U}",
+      "tipo_linha": "Creature — Human",
+      "texto": "Flying, ward {2}\n{T}: Tap target creature with mana value x from your graveyard to your hand: target land becomes a.\nThis creature costs {1} less to cast and ca n't be blocked.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i086",
+      "bloco": 22,
+      "nome": "Rimeshield Frost Giant",
+      "custo": "{3}{U}",
+      "tipo_linha": "Creature — Human",
+      "texto": "Flying, ward {2}\n{T}: Tap target creature with mana value x from your graveyard to your hand; target land becomes an a.\nThis creature costs {1} less to cast and cannot be blocked.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i087",
+      "bloco": 22,
+      "nome": "Rimeshield Frost Giant",
+      "custo": "{3}{U}{U}",
+      "tipo_linha": "Creature — Giant Warrior",
+      "texto": "Ward {3} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)",
+      "pt": "4/5"
+    },
+    {
+      "item_id": "i088",
+      "bloco": 22,
+      "nome": "Rimeshield Frost Giant",
+      "custo": "{2}{W}",
+      "tipo_linha": "Creature — giant",
+      "texto": "Whenever Rimeshield Frost Giant attacks, you may cast an instant or sorcery at instant speed costing no mana.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i089",
+      "bloco": 23,
+      "nome": "Tourach's Canticle",
+      "custo": "{3}{B}{B}",
+      "tipo_linha": "Sorcery",
+      "texto": "Destroy three target permanents.\nTime travel.",
+      "pt": ""
+    },
+    {
+      "item_id": "i090",
+      "bloco": 23,
+      "nome": "Tourach's Canticle",
+      "custo": "{1}{B}",
+      "tipo_linha": "Sorcery — Illusion",
+      "texto": "Target player discards a card. If that card was put into a graveyard this turn, its controller draws a card.",
+      "pt": ""
+    },
+    {
+      "item_id": "i091",
+      "bloco": 23,
+      "nome": "Tourach's Canticle",
+      "custo": "{3}{B}",
+      "tipo_linha": "Sorcery",
+      "texto": "Target opponent reveals their hand. You choose a card from it. That player discards that card, then discards a card at random.",
+      "pt": ""
+    },
+    {
+      "item_id": "i092",
+      "bloco": 23,
+      "nome": "Tourach's Canticle",
+      "custo": "{3}{B}{B}",
+      "tipo_linha": "Sorcery",
+      "texto": "Destroy three target permanents. Time travel.",
+      "pt": ""
+    },
+    {
+      "item_id": "i093",
+      "bloco": 24,
+      "nome": "Agitator Ant",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Elemental Cat",
+      "texto": "At the beginning of the next end step.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i094",
+      "bloco": 24,
+      "nome": "Agitator Ant",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Elemental Cat",
+      "texto": "At the beginning of the next end step, you may cast this card.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i095",
+      "bloco": 24,
+      "nome": "Agitator Ant",
+      "custo": "{1}{R}",
+      "tipo_linha": "Creature — Zombie",
+      "texto": "When Raging Scavenger enters the battlefield, you may exile target creature.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i096",
+      "bloco": 24,
+      "nome": "Agitator Ant",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Insect",
+      "texto": "At the beginning of your end step, each player may put two +1/+1 counters on a creature they control. Goad each creature that had counters put on it this way. (Until your next turn, those creatures attack each combat if able and attack a player other than you if able.)",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i097",
+      "bloco": 25,
+      "nome": "Blood Hypnotist",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Human",
+      "texto": "When Crimson Echo enters the battlefield, deal 2 damage to target creature.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i098",
+      "bloco": 25,
+      "nome": "Blood Hypnotist",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Elemental Beast",
+      "texto": "When Blood Hypnotist dies, put a creature card from your hand onto the top of the exile pile.\nWhenever you cast an instant or sorcery spell that targets a creature you control, it deals 5 or more damage to that creature.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i099",
+      "bloco": 25,
+      "nome": "Blood Hypnotist",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Elemental Beast",
+      "texto": "When Blood Hypnotist dies, put a soldier, warrior, or wizard creature card from your hand onto the top.\nWhenever you cast an instant or sorcery spell that targets a creature you control deals 5 or more damage to.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i100",
+      "bloco": 25,
+      "nome": "Blood Hypnotist",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Vampire",
+      "texto": "This creature can't block.\nWhenever you sacrifice one or more Blood tokens, target creature can't block this turn. This ability triggers only once each turn.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i101",
+      "bloco": 26,
+      "nome": "Goblin Commando",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Spirit Avatar Soldier",
+      "texto": "Menace, Trample, Vigilance, Riot\nWhenever a creature you control to its owner 's hand.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i102",
+      "bloco": 26,
+      "nome": "Goblin Commando",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Spirit Avatar Soldier",
+      "texto": "When a creature you control dies, you may draw a card.",
+      "pt": "4/4"
+    },
+    {
+      "item_id": "i103",
+      "bloco": 26,
+      "nome": "Goblin Commando",
+      "custo": "{1}{R}",
+      "tipo_linha": "Creature — Goblin",
+      "texto": "When Raging Goblin Marauder enters the battlefield, it deals 2 damage to target creature.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i104",
+      "bloco": 26,
+      "nome": "Goblin Commando",
+      "custo": "{4}{R}",
+      "tipo_linha": "Creature — Goblin",
+      "texto": "When this creature enters, it deals 2 damage to target creature.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i105",
+      "bloco": 27,
+      "nome": "Swift Response",
+      "custo": "{1}{W}",
+      "tipo_linha": "Instant",
+      "texto": "Addendum if you cast Swift Response from your seat.\nTarget creature gains flying until.",
+      "pt": ""
+    },
+    {
+      "item_id": "i106",
+      "bloco": 27,
+      "nome": "Swift Response",
+      "custo": "{1}{W}",
+      "tipo_linha": "Instant",
+      "texto": "Destroy target tapped creature.",
+      "pt": ""
+    },
+    {
+      "item_id": "i107",
+      "bloco": 27,
+      "nome": "Swift Response",
+      "custo": "{1}{W}",
+      "tipo_linha": "Instant — reaction",
+      "texto": "When this instant is played, you may cast an instant or sorcery spell without paying its mana cost. You gain 1 life.",
+      "pt": ""
+    },
+    {
+      "item_id": "i108",
+      "bloco": 27,
+      "nome": "Swift Response",
+      "custo": "{1}{W}",
+      "tipo_linha": "Instant",
+      "texto": "If you cast Swift Response from your seat, target creature gains flying until the end of the turn.",
+      "pt": ""
+    },
+    {
+      "item_id": "i109",
+      "bloco": 28,
+      "nome": "Dwarven Hammer",
+      "custo": "{1}{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "When Dwarven Hammer enters the battlefield, you may draw a card.\nEquipped creature gets +1/+1.\nEquip for {2}.",
+      "pt": ""
+    },
+    {
+      "item_id": "i110",
+      "bloco": 28,
+      "nome": "Dwarven Hammer",
+      "custo": "{3}{R}",
+      "tipo_linha": "Artifact — Metal",
+      "texto": "When Dwarven Anvil enters the battlefield, you may exile a card. If you do, draw a card.",
+      "pt": ""
+    },
+    {
+      "item_id": "i111",
+      "bloco": 28,
+      "nome": "Dwarven Hammer",
+      "custo": "{1}{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "When Dwarven Hammer enters, you may attach this equipment: Draw a card.\nEquipped creature gets +1/+1.\nEquip {2}",
+      "pt": ""
+    },
+    {
+      "item_id": "i112",
+      "bloco": 28,
+      "nome": "Dwarven Hammer",
+      "custo": "{2}{R}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "When this Equipment enters, you may pay {2}. If you do, create a 2/1 red Dwarf Berserker creature token, then attach this Equipment to it.\nEquipped creature gets +3/+0 and has trample.\nEquip {3}",
+      "pt": ""
+    },
+    {
+      "item_id": "i113",
+      "bloco": 29,
+      "nome": "Hazmat Suit (Used)",
+      "custo": "{2}{B}",
+      "tipo_linha": "Enchantment — Aura",
+      "texto": "Enchant creature.\nVip line access search your library for a card, you gain 1 life.\nEnchanted creature has poisonous 3.",
+      "pt": ""
+    },
+    {
+      "item_id": "i114",
+      "bloco": 29,
+      "nome": "Hazmat Suit (Used)",
+      "custo": "{2}{B}",
+      "tipo_linha": "Enchantment — Aura",
+      "texto": "Enchant a creature.\nWhen you cast this Aura, search your library for a card, reveal it, and put it into your hand. You gain 1 life.\nEnchanted creature has poison 3.",
+      "pt": ""
+    },
+    {
+      "item_id": "i115",
+      "bloco": 29,
+      "nome": "Hazmat Suit (Used)",
+      "custo": "{1}{B}",
+      "tipo_linha": "Enchantment — Equipment",
+      "texto": "Whenever a player casts a spell, you may pay {B}. If you do, target creature gains hexproof until end of turn.",
+      "pt": ""
+    },
+    {
+      "item_id": "i116",
+      "bloco": 29,
+      "nome": "Hazmat Suit (Used)",
+      "custo": "{3}{B}",
+      "tipo_linha": "Enchantment — Aura",
+      "texto": "Enchant creature\nEnchanted creature gets +2/+1 and has menace.\nWhenever a player's skin or fingernail touches enchanted creature, that player loses 2 life.",
+      "pt": ""
+    },
+    {
+      "item_id": "i117",
+      "bloco": 30,
+      "nome": "All-Star Kicker",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Comet",
+      "texto": "When Raging Comet enters the battlefield, it deals 2 damage to target creature.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i118",
+      "bloco": 30,
+      "nome": "All-Star Kicker",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Spirit",
+      "texto": "Whenever you discard a card, you may draw a card.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i119",
+      "bloco": 30,
+      "nome": "All-Star Kicker",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Spirit",
+      "texto": "Whenever you discard a card if you do, draw a card.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i120",
+      "bloco": 30,
+      "nome": "All-Star Kicker",
+      "custo": "{1}{R}",
+      "tipo_linha": "Creature — Orc Athlete",
+      "texto": "Assist kicker {3} (You and up to one other player can spend mana to pay this kicker cost.)\nWhen All-Star Kicker enters the battlefield, your team may pass the ball. Then if All-Star Kicker was kicked, creatures your team controls get +1/+1 and gain haste until end of turn. (To pass the ball, one of the players on your team gives a permanent or card in hand to another player on your team.)",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i121",
+      "bloco": 31,
+      "nome": "Krark-Clan Stoker",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Human",
+      "texto": "Whenever you cast an instant or sorcery spell from your hand otherwise, discard a card.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i122",
+      "bloco": 31,
+      "nome": "Krark-Clan Stoker",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Human",
+      "texto": "Whenever you cast an instant or sorcery spell from your hand, discard a card.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i123",
+      "bloco": 31,
+      "nome": "Krark-Clan Stoker",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Goblin Shaman",
+      "texto": "{T}, Sacrifice an artifact: Add {R}{R}.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i124",
+      "bloco": 31,
+      "nome": "Krark-Clan Stoker",
+      "custo": "{R}",
+      "tipo_linha": "Creature — zombie",
+      "texto": "Vindictive, Krark-Clan Pyreguard attacks with menace.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i125",
+      "bloco": 32,
+      "nome": "Diregraf Horde",
+      "custo": "{4}{B}",
+      "tipo_linha": "Creature — Zombie",
+      "texto": "When this creature enters, create two 2/2 black Zombie creature tokens with decayed. When you do, exile up to two target cards from graveyards. (A creature with decayed can't block. When it attacks, sacrifice it at end of combat.)",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i126",
+      "bloco": 32,
+      "nome": "Diregraf Horde",
+      "custo": "{3}{B}",
+      "tipo_linha": "Creature — Noble",
+      "texto": "{2}: Target creature gets -2/-2 until end of turn if able to block.",
+      "pt": "3/2"
+    },
+    {
+      "item_id": "i127",
+      "bloco": 32,
+      "nome": "Diregraf Horde",
+      "custo": "{3}{B}",
+      "tipo_linha": "Creature — Noble",
+      "texto": "{2}: Target creature gets -2/-2 until end of turn that creature must be blocked if able.",
+      "pt": "3/2"
+    },
+    {
+      "item_id": "i128",
+      "bloco": 32,
+      "nome": "Diregraf Horde",
+      "custo": "{1}{B}",
+      "tipo_linha": "Creature — Zombie",
+      "texto": "When Blackblood Brute enters the battlefield, you may pay 2 life. If you do, it gets +2/+2 until end of turn.",
+      "pt": "2/4"
+    },
+    {
+      "item_id": "i129",
+      "bloco": 33,
+      "nome": "Sugar Rush",
+      "custo": "{1}{B}",
+      "tipo_linha": "Instant",
+      "texto": "Target creature gets +3/+0 until end of turn.\nDraw a card.",
+      "pt": ""
+    },
+    {
+      "item_id": "i130",
+      "bloco": 33,
+      "nome": "Sugar Rush",
+      "custo": "{1}{B}",
+      "tipo_linha": "Instant — Reanimation",
+      "texto": "Target creature gets -1/-1 until end of turn. Exile it. Return it to the battlefield under your control.",
+      "pt": ""
+    },
+    {
+      "item_id": "i131",
+      "bloco": 33,
+      "nome": "Sugar Rush",
+      "custo": "{1}{B}",
+      "tipo_linha": "Instant",
+      "texto": "Destroy target artifact or enchantment an opponent controls with mana value less than or equal to the number of cards.",
+      "pt": ""
+    },
+    {
+      "item_id": "i132",
+      "bloco": 33,
+      "nome": "Sugar Rush",
+      "custo": "{1}{B}",
+      "tipo_linha": "Instant",
+      "texto": "Destroy target artifact or enchantment an opponent controls with mana value less than or equal to its controller’s board.",
+      "pt": ""
+    },
+    {
+      "item_id": "i133",
+      "bloco": 34,
+      "nome": "Earthquake Dragon",
+      "custo": "{3}{G}{G}",
+      "tipo_linha": "Creature — Elf Warrior",
+      "texto": "May say gotcha '' when you do, Earthquake Dragon assembles a contraption.\nCoven at the beginning of combat on your turn, you may play lands and cast insect spells from your.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i134",
+      "bloco": 34,
+      "nome": "Earthquake Dragon",
+      "custo": "{3}{G}{G}",
+      "tipo_linha": "Creature — Elf Warrior",
+      "texto": "May tap to state “Gotcha!” when you cast Earthquake Dragon. \n\nAt the beginning of combat on your turn, you may play lands and cast insect spells from your hand.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i135",
+      "bloco": 34,
+      "nome": "Earthquake Dragon",
+      "custo": "{14}{G}",
+      "tipo_linha": "Creature — Elemental Dragon",
+      "texto": "This spell costs {X} less to cast, where X is the total mana value of Dragons you control.\nFlying, trample\n{2}{G}, Sacrifice a land: Return this card from your graveyard to your hand.",
+      "pt": "10/10"
+    },
+    {
+      "item_id": "i136",
+      "bloco": 34,
+      "nome": "Earthquake Dragon",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — dragon",
+      "texto": "Quando Tremor Dracônico entra no campo de batalha, cada outra criatura que você controla ganha +1/+1 até o final do turno.",
+      "pt": "7/5"
+    },
+    {
+      "item_id": "i137",
+      "bloco": 35,
+      "nome": "Saprazzan Breaker",
+      "custo": "{4}{U}",
+      "tipo_linha": "Creature — Beast",
+      "texto": "{U}: Mill a card. If a land card was milled this way, this creature can't be blocked this turn.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i138",
+      "bloco": 35,
+      "nome": "Saprazzan Breaker",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — Insect Wizard",
+      "texto": "Whenever Saprazzan Breaker attacks, it gets +1/+0 until end of turn.\nCreature spells with mana value greater than each other player, the ring tempts you, you may sneak This creature.",
+      "pt": "1/2"
+    },
+    {
+      "item_id": "i139",
+      "bloco": 35,
+      "nome": "Saprazzan Breaker",
+      "custo": "{1}{U}",
+      "tipo_linha": "Creature — dolphin",
+      "texto": "Whenever Sapprazzan Surge attacks, you may pay 1 life. If you do, Sapprazzan Surge gets +2/+2 until end of turn.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i140",
+      "bloco": 35,
+      "nome": "Saprazzan Breaker",
+      "custo": "{2}{U}",
+      "tipo_linha": "Creature — Insect Wizard",
+      "texto": "Whenever Saprazzan Breaker attacks, it gets +1/+0 until end of turn.\n\nCreature spells with mana value greater than each other player’s, the ring tempts you; you may activate its ability.",
+      "pt": "1/2"
+    },
+    {
+      "item_id": "i141",
+      "bloco": 36,
+      "nome": "Possibility Technician",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Human Wizard",
+      "texto": "Possibility Technician costs {1} less to cast.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i142",
+      "bloco": 36,
+      "nome": "Possibility Technician",
+      "custo": "{2}{R}",
+      "tipo_linha": "Creature — Kavu Artificer",
+      "texto": "Whenever this creature or another Kavu you control enters, exile the top card of your library. For as long as that card remains exiled, you may play it if you control a Kavu.\nWarp {1}{R} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i143",
+      "bloco": 36,
+      "nome": "Possibility Technician",
+      "custo": "{3}{R}",
+      "tipo_linha": "Creature — Human Wizard",
+      "texto": "Possibility Technician costs {1} less to cast when you could cast another spell this turn.",
+      "pt": "3/3"
+    },
+    {
+      "item_id": "i144",
+      "bloco": 36,
+      "nome": "Possibility Technician",
+      "custo": "{1}{R}",
+      "tipo_linha": "Creature — Zombie",
+      "texto": "When Ruinous Scavenger enters the battlefield, you may discard a card. If you do, it gets +2/+2.",
+      "pt": "2/2"
+    },
+    {
+      "item_id": "i145",
+      "bloco": 37,
+      "nome": "Treeguard Duo",
+      "custo": "{3}{G}",
+      "tipo_linha": "Creature — Frog Rabbit",
+      "texto": "When this creature enters, until end of turn, target creature you control gains vigilance and gets +X/+X, where X is the number of creatures you control.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i146",
+      "bloco": 37,
+      "nome": "Treeguard Duo",
+      "custo": "{3}{G}",
+      "tipo_linha": "Creature — Dinosaur Beast",
+      "texto": "Whenever you cast Treeguard Duo, you gain 1 life +0/+2.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i147",
+      "bloco": 37,
+      "nome": "Treeguard Duo",
+      "custo": "{3}{G}",
+      "tipo_linha": "Creature — Dinosaur Beast",
+      "texto": "Whenever you cast Treeguard Duo, gain 1 life and +0/+2.",
+      "pt": "3/4"
+    },
+    {
+      "item_id": "i148",
+      "bloco": 37,
+      "nome": "Treeguard Duo",
+      "custo": "{1}{G}",
+      "tipo_linha": "Creature — Guardian",
+      "texto": "Whenever Rootbound Warden attacks, you may draw a card.",
+      "pt": "2/3"
+    },
+    {
+      "item_id": "i149",
+      "bloco": 38,
+      "nome": "Dismantling Wave",
+      "custo": "{2}{W}",
+      "tipo_linha": "Sorcery",
+      "texto": "For each opponent, destroy up to one target artifact or enchantment that player controls.\nCycling {6}{W}{W} ({6}{W}{W}, Discard this card: Draw a card.)\nWhen you cycle this card, destroy all artifacts and enchantments.",
+      "pt": ""
+    },
+    {
+      "item_id": "i150",
+      "bloco": 38,
+      "nome": "Dismantling Wave",
+      "custo": "{2}{W}",
+      "tipo_linha": "Sorcery",
+      "texto": "Tap up to two lands your controller controls. Its controller gains life equal to the mana value of the tapped lands. Target creature.",
+      "pt": ""
+    },
+    {
+      "item_id": "i151",
+      "bloco": 38,
+      "nome": "Dismantling Wave",
+      "custo": "{2}{W}",
+      "tipo_linha": "Sorcery — control",
+      "texto": "Target player discards a card. Exile up to two target artifacts or enchantments.",
+      "pt": ""
+    },
+    {
+      "item_id": "i152",
+      "bloco": 38,
+      "nome": "Dismantling Wave",
+      "custo": "{2}{W}",
+      "tipo_linha": "Sorcery",
+      "texto": "Return up to two land cards from the top its controller gains life equal to its mana value then target.",
+      "pt": ""
+    },
+    {
+      "item_id": "i153",
+      "bloco": 39,
+      "nome": "Lava Dart",
+      "custo": "{R}",
+      "tipo_linha": "Instant",
+      "texto": "Lava Dart deals 1 damage to any target.\nFlashback—Sacrifice a Mountain. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+      "pt": ""
+    },
+    {
+      "item_id": "i154",
+      "bloco": 39,
+      "nome": "Lava Dart",
+      "custo": "{2}{R}",
+      "tipo_linha": "Instant — Sorcery",
+      "texto": "Deal 2 damage to target creature or player.",
+      "pt": ""
+    },
+    {
+      "item_id": "i155",
+      "bloco": 39,
+      "nome": "Lava Dart",
+      "custo": "{3}{R}",
+      "tipo_linha": "Instant",
+      "texto": "Domain targets creature values 2 and 1 then shuffles Lava Dart into its owner’s library. You may choose new targets for the spell or ability.",
+      "pt": ""
+    },
+    {
+      "item_id": "i156",
+      "bloco": 39,
+      "nome": "Lava Dart",
+      "custo": "{3}{R}",
+      "tipo_linha": "Instant",
+      "texto": "Domain target creature values 2 and 1 then shuffle Lava Dart into its owner 's library.\nYou may choose new targets for that spell or ability then copy it you may choose new targets for the.",
+      "pt": ""
+    },
+    {
+      "item_id": "i157",
+      "bloco": 40,
+      "nome": "Squire's Lightblade",
+      "custo": "{1}{W}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Equipped creature gets +1/+1. When Squire's Lightblade enters the battlefield, you may exile target artifact.",
+      "pt": ""
+    },
+    {
+      "item_id": "i158",
+      "bloco": 40,
+      "nome": "Squire's Lightblade",
+      "custo": "{W}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Flash\nWhen this Equipment enters, attach it to target creature you control. That creature gains first strike until end of turn.\nEquipped creature gets +1/+0.\nEquip {3}",
+      "pt": ""
+    },
+    {
+      "item_id": "i159",
+      "bloco": 40,
+      "nome": "Squire's Lightblade",
+      "custo": "{3}{W}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Equipped creature gets +2/+2.\nEquip {1} creature gets +1/+0 and is a monk in addition to their other colors and ca n't be blocked.\nThis creature enters, sacrifice This creature and destroy target creature return the greatest power pilot onto the battlefield attached to it.",
+      "pt": ""
+    },
+    {
+      "item_id": "i160",
+      "bloco": 40,
+      "nome": "Squire's Lightblade",
+      "custo": "{3}{W}",
+      "tipo_linha": "Artifact — Equipment",
+      "texto": "Equipped creature gets +2/+2.\nEquipping {1} creature grants +1/+0 and the Monk subtype in addition to its other subtypes and cannot be blocked.\nThis creature enters the battlefield, and if it's sacrificed, that creature returns to the battlefield attached to the player with the greatest power.",
+      "pt": ""
+    }
+  ]
+}

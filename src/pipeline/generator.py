@@ -236,6 +236,7 @@ def gerar_carta(
     usar_arte: bool = False,
     seed_arte: Optional[int] = None,
     avisar_arte=print,
+    seed: Optional[int] = None,
 ) -> Carta:
     """Ponto de entrada único do pipeline.
 
@@ -304,17 +305,23 @@ def gerar_carta(
 
     modelo = _obter_modelo()
 
+    # Único fluxo de aleatoriedade reprodutível do pipeline: quando `seed`
+    # é informado, todos os sorteios (tipo, subtipos, parágrafos, Crew,
+    # P/T de Veículo) saem daqui. Com `seed=None` o comportamento é o
+    # antigo (não reprodutível).
+    rng = random.Random(seed)
+
     # Etapa 1: decide o tipo. A ordem de preferência é: escolha explícita
     # do usuário > inferência pelo nome > sorteio ponderado pela frequência
     # real no corpus.
     if decisao == _TIPO_SORTEAR:
-        tipo_chave = modelo.sortear_tipo()
+        tipo_chave = modelo.sortear_tipo(rng=rng)
         tipo_origem = "sorteio"
         tipo_motivo = "tipo sorteado (opção Aleatório)"
     elif decisao == _TIPO_AUTO:
-        inferencia = inferir_tipo_por_nome(nome)
+        inferencia = inferir_tipo_por_nome(nome, rng=rng)
         if inferencia.tipo is None:
-            tipo_chave = modelo.sortear_tipo()
+            tipo_chave = modelo.sortear_tipo(rng=rng)
             tipo_origem = "sorteio"
             tipo_motivo = inferencia.motivo
         else:
@@ -327,7 +334,6 @@ def gerar_carta(
         tipo_motivo = "tipo escolhido manualmente"
 
     tipo_display = TIPOS_DISPLAY[tipo_chave]
-    rng = random.Random()
 
     # Etapa 2: subtipos condicionados ao tipo e à cor. As probabilidades
     # vêm do corpus (ver pipeline.subtipos).
@@ -353,6 +359,7 @@ def gerar_carta(
     resultado = modelo.gerar_texto(
         cor_abrev, tipo=tipo_chave, peso_cor=peso_cor, nome=nome,
         pesos_ngrama=pesos_usados, n_paragrafos=n_paragrafos_efetivo,
+        seed=seed,
     )
     texto_regras = resultado["texto"]
     palavras_chave = resultado["palavras_chave"]
