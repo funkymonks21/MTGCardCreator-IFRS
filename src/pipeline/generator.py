@@ -4,9 +4,9 @@ Núcleo do pipeline de geração de cartas.
 Este módulo é o único lugar onde a LÓGICA de geração deve morar. Tanto o
 notebook do Colab (notebooks/demo.ipynb) quanto uma eventual interface web
 futura apenas IMPORTAM e CHAMAM `gerar_carta` — eles não reimplementam
-nada. Isso garante que exista um único "motor" testável e que as próximas
-etapas do projeto (scikit-learn, PyTorch, OpenCV) entrem aqui dentro, sem
-mexer na parte de interface.
+nada. Isso garante que exista um único "motor" testável e que as etapas do
+projeto (scikit-learn, NLTK, arte via API e moldura em Pillow) entrem aqui
+dentro, sem mexer na parte de interface.
 
 Decisão de design: o texto de regras é gerado por uma cadeia de Markov
 treinada por TIPO e por cor (ver pipeline.texto_markov), SEM filtro de
@@ -37,7 +37,7 @@ no relatório do projeto.
 import random
 import unicodedata
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from PIL import Image, ImageDraw
 
@@ -172,6 +172,12 @@ class Carta:
     # gerada sem arte (`usar_arte=False`).
     arte_da_api: Optional[bool] = None
     arte_motivo: Optional[str] = None
+    # Braço que gerou a carta: "M1" (pipeline), "M2" (pipeline + refino) ou
+    # "M3" (LLM pura). Preenchido por pipeline.llm nos dois últimos.
+    modelo: str = "M1"
+    # M2: True se o LLM realmente mudou o texto; False se o refino falhou e
+    # a carta ficou igual ao M1. Nulo nos outros braços.
+    refinado: Optional[bool] = None
 
 
 def _resolver_tipo(tipo: Optional[str]) -> str:
@@ -225,6 +231,39 @@ def _resolver_pesos_ngrama(
     return dict(PESOS_NGRAMA_PADRAO)
 
 
+def _decidir_tipo(nome: str, decisao: str, rng: random.Random) -> Tuple[str, str, str]:
+    """Etapa 1 do pipeline: resolve a chave interna do tipo.
+
+    `decisao` já vem de `_resolver_tipo`. Devolve `(tipo_chave, origem,
+    motivo)`, onde `origem` é "escolhido", "nome" ou "sorteio".
+    """
+    if decisao == _TIPO_SORTEAR:
+        return (
+            _obter_modelo().sortear_tipo(rng=rng),
+            "sorteio",
+            "tipo sorteado (opção Aleatório)",
+        )
+    if decisao == _TIPO_AUTO:
+        inferencia = inferir_tipo_por_nome(nome, rng=rng)
+        if inferencia.tipo is None:
+            return _obter_modelo().sortear_tipo(rng=rng), "sorteio", inferencia.motivo
+        return inferencia.tipo, "nome", inferencia.motivo
+    return decisao, "escolhido", "tipo escolhido manualmente"
+
+
+def resolver_tipo(
+    nome: str, tipo: Optional[str] = None, seed: Optional[int] = None
+) -> Tuple[str, str, str]:
+    """Resolve o tipo da carta **sem gerar** texto, custo ou imagem.
+
+    Existe para o M3: no demo ele precisa pedir ao LLM o mesmo tipo que o
+    pipeline usaria, com a mesma semente, para que os três braços sejam
+    comparáveis. Devolve `(tipo_chave, origem, motivo)`.
+    """
+    nome = (nome or "").strip() or "Carta Sem Nome"
+    return _decidir_tipo(nome, _resolver_tipo(tipo), random.Random(seed))
+
+
 def gerar_carta(
     nome: str,
     cor: str,
@@ -274,8 +313,10 @@ def gerar_carta(
            cartas reais da Scryfall) -> custo de mana; poder/resistência
            apenas para criaturas; terrenos não têm custo nem P/T -- ver
            pipeline.estrutura;
-        6. texto gerado -> classificador PyTorch -> mede o quão "on-color"
-           o texto gerado ficou (métrica/diagnóstico, não filtro);
+        6. [FORA DO ESCOPO] classificador de cor como métrica de diagnóstico
+           ("o quão on-color o texto ficou") -- foi cogitado no início, mas
+           a entrega termina no gerador e na comparação M1/M2/M3. A cor
+           continua entrando na geração via `peso_cor`;
         7. [FEITO] nome + tipo + texto -> prompt -> API de imagem
            (Pollinations.ai, sem chave) -> arte. Ver pipeline.imagem;
         8. [FEITO] arte + textos -> composição final (moldura desenhada em
@@ -314,24 +355,7 @@ def gerar_carta(
     # Etapa 1: decide o tipo. A ordem de preferência é: escolha explícita
     # do usuário > inferência pelo nome > sorteio ponderado pela frequência
     # real no corpus.
-    if decisao == _TIPO_SORTEAR:
-        tipo_chave = modelo.sortear_tipo(rng=rng)
-        tipo_origem = "sorteio"
-        tipo_motivo = "tipo sorteado (opção Aleatório)"
-    elif decisao == _TIPO_AUTO:
-        inferencia = inferir_tipo_por_nome(nome, rng=rng)
-        if inferencia.tipo is None:
-            tipo_chave = modelo.sortear_tipo(rng=rng)
-            tipo_origem = "sorteio"
-            tipo_motivo = inferencia.motivo
-        else:
-            tipo_chave = inferencia.tipo
-            tipo_origem = "nome"
-            tipo_motivo = inferencia.motivo
-    else:
-        tipo_chave = decisao
-        tipo_origem = "escolhido"
-        tipo_motivo = "tipo escolhido manualmente"
+    tipo_chave, tipo_origem, tipo_motivo = _decidir_tipo(nome, decisao, rng)
 
     tipo_display = TIPOS_DISPLAY[tipo_chave]
 
@@ -407,39 +431,19 @@ def gerar_carta(
         if pt is not None:
             poder, resistencia = pt
 
-    arte_da_api: Optional[bool] = None
-    arte_motivo: Optional[str] = None
-
-    if usar_arte:
-        # Etapas 7-8: arte via API de imagem (com fallback local) e
-        # composição da moldura realista. Ver pipeline.imagem. Usamos a
-        # variante "detalhada" para saber se veio da API ou do fallback e
-        # poder avisar o usuário (ex.: limite gratuito da API atingido).
-        resultado_arte = gerar_arte_detalhada(
-            nome,
-            tipo_linha or tipo_chave,
-            texto_regras,
-            cor_abrev,
-            seed=seed_arte,
-            avisar=avisar_arte,
-        )
-        arte_da_api = resultado_arte.da_api
-        arte_motivo = resultado_arte.motivo
-        arte = resultado_arte.imagem
-        imagem = compor_frame(
-            arte,
-            nome=nome,
-            tipo_linha=tipo_linha,
-            texto_regras=texto_regras,
-            custo_mana=custo_mana,
-            poder=poder,
-            resistencia=resistencia,
-            cor=cor_abrev,
-        )
-    else:
-        imagem = _imagem_placeholder(
-            nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
-        )
+    imagem, arte_da_api, arte_motivo = renderizar_imagem(
+        nome=nome,
+        cor=cor,
+        cor_abrev=cor_abrev,
+        tipo_linha=tipo_linha or tipo_chave,
+        texto_regras=texto_regras,
+        custo_mana=custo_mana,
+        poder=poder,
+        resistencia=resistencia,
+        usar_arte=usar_arte,
+        seed_arte=seed_arte,
+        avisar_arte=avisar_arte,
+    )
 
     return Carta(
         nome=nome,
@@ -465,6 +469,64 @@ def gerar_carta(
     )
 
 
+def renderizar_imagem(
+    nome: str,
+    cor: str,
+    cor_abrev: str,
+    tipo_linha: str,
+    texto_regras: str,
+    custo_mana: str,
+    poder: Optional[int] = None,
+    resistencia: Optional[int] = None,
+    usar_arte: bool = False,
+    seed_arte: Optional[int] = None,
+    avisar_arte=print,
+) -> Tuple[Image.Image, Optional[bool], Optional[str]]:
+    """Monta a imagem final (arte + moldura) a partir dos campos já resolvidos.
+
+    Separado de `gerar_carta` para que os braços M2 e M3 possam **re-renderizar**
+    a carta depois de trocar o texto de regras, sem repetir a lógica de arte.
+    Devolve `(imagem, arte_da_api, arte_motivo)`.
+
+    `cor` é o nome em português (usado no fallback e no frame) e `cor_abrev` é
+    a letra de mana (`W/U/B/R/G`) esperada pelas funções de arte.
+    """
+    arte_da_api: Optional[bool] = None
+    arte_motivo: Optional[str] = None
+
+    if usar_arte:
+        # Etapas 7-8: arte via API de imagem (com fallback local) e
+        # composição da moldura realista. Ver pipeline.imagem. Usamos a
+        # variante "detalhada" para saber se veio da API ou do fallback e
+        # poder avisar o usuário (ex.: limite gratuito da API atingido).
+        resultado_arte = gerar_arte_detalhada(
+            nome,
+            tipo_linha,
+            texto_regras,
+            cor_abrev,
+            seed=seed_arte,
+            avisar=avisar_arte,
+        )
+        arte_da_api = resultado_arte.da_api
+        arte_motivo = resultado_arte.motivo
+        imagem = compor_frame(
+            resultado_arte.imagem,
+            nome=nome,
+            tipo_linha=tipo_linha,
+            texto_regras=texto_regras,
+            custo_mana=custo_mana,
+            poder=poder,
+            resistencia=resistencia,
+            cor=cor_abrev,
+        )
+    else:
+        imagem = _imagem_placeholder(
+            nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
+        )
+
+    return imagem, arte_da_api, arte_motivo
+
+
 def _imagem_placeholder(
     nome: str,
     cor: str,
@@ -474,18 +536,19 @@ def _imagem_placeholder(
     poder: Optional[int] = None,
     resistencia: Optional[int] = None,
 ) -> Image.Image:
-    """Será substituído pela composição final com OpenCV, usando a arte
-    gerada pela API de imagem (etapas 7-8 do TODO acima). Por enquanto,
-    desenha um retângulo simples só para a interface ter uma imagem real
-    para exibir."""
+    """Placeholder usado quando a arte/moldura não é pedida (`usar_arte=False`).
+
+    Desenha um retângulo com nome, tipo, custo, texto e P/T só para a
+    interface ter uma imagem real para exibir. A composição de verdade é
+    `pipeline.imagem.compor_frame` (Pillow, não OpenCV)."""
     largura, altura = 480, 680
     img = Image.new("RGB", (largura, altura), color=COLOR_PIE[cor]["hex"])
     draw = ImageDraw.Draw(img)
 
     # A fonte bitmap padrão do PIL não renderiza acentos corretamente;
-    # como isso é só o placeholder visual (será substituído por uma
-    # composição de verdade via OpenCV + fonte própria na etapa final),
-    # removemos os acentos apenas para o texto desenhado na imagem.
+    # como isso é só o placeholder visual (a moldura de verdade usa as
+    # fontes de assets/fonts/), removemos os acentos apenas para o texto
+    # desenhado na imagem.
     nome_img = _remover_acentos(nome)
     tipo_img = _remover_acentos(tipo_linha)
     texto_img = _remover_acentos(texto_regras)

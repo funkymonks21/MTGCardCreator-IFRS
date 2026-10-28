@@ -133,9 +133,10 @@ versionados em `models/`.
 > poder/resistência via regressão scikit-learn (`src/pipeline/estrutura.py`)
 > e **arte via API de imagem + moldura realista em código**
 > (`src/pipeline/imagem.py`) já funcionando, com peso da cor ajustável.
-> As próximas etapas (classificador de cor em PyTorch como métrica de
-> diagnóstico, grafo de transições com NetworkX/Matplotlib) vão preencher o
-> que falta em `src/pipeline/`, sem alterar a interface do notebook.
+> As etapas previstas para o projeto (scikit-learn, NLTK, arte via API e
+> moldura em código) estão em `src/pipeline/`. O escopo fecha aqui: não há
+> mais classificador de cor em PyTorch nem grafo de transições — o trabalho
+> entregue é o gerador e a comparação dos três braços.
 >
 > O **estudo comparativo dos três braços** (M1 = este pipeline; M2 = M1 com o
 > texto refinado por LLM; M3 = LLM pura) foi executado sobre 1.000 cartas por
@@ -152,13 +153,10 @@ versionados em `models/`.
 ## Stack
 
 - **Dados**: [Scryfall API](https://scryfall.com/docs/api) + Pandas / Numpy
-- **Texto**: NLTK, Gensim (Word2Vec)
+- **Texto**: NLTK, Gensim (Word2Vec), cadeia de Markov por tipo e cor
 - **Estatística / ML**: Scikit-Learn
-- **Rede neural**: PyTorch
-- **Grafos**: NetworkX
-- **Visualização**: Matplotlib
-- **Imagem final da carta**: OpenCV
-- **Arte**: API de geração de imagem (LLM)
+- **LLM local (M2/M3)**: [Ollama](https://ollama.com) com `gemma3:4b`
+- **Imagem final da carta**: Pillow (moldura) + API de geração de imagem
 
 ## Estrutura do repositório
 
@@ -172,12 +170,13 @@ MTGCardCreator-IFRS/
 │   ├── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
 │   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip/Equipped/Crew/Saga (versionado no git)
 ├── notebooks/
-│   └── demo.ipynb              # interface do projeto: roda no Colab, chama o pipeline
+│   └── demo.ipynb              # interface do projeto: seletor M1/M2/M3, roda no Colab (M1) ou com Ollama local
 ├── src/
 │   ├── data/
 │   │   └── fetch_scryfall_data.py      # obtenção dos dados brutos
 │   └── pipeline/
 │       ├── generator.py                # ponto de entrada (tipo -> subtipos -> habilidades -> regras -> custo/P/T)
+│       ├── llm.py                      # braços M2 (refino do texto) e M3 (LLM pura) + checagem do Ollama
 │       ├── tipos.py                    # tipos suportados e regras (P/T, habilidades ativadas, terrenos)
 │       ├── tipo_por_nome.py            # inferência do tipo pelo nome (NLTK: POS tagging + WordNet)
 │       ├── texto_markov.py             # geração de texto via cadeia de Markov por tipo e cor
@@ -427,6 +426,12 @@ protocolo cego com 40 blocos de 4 cartas (M1, M2, M3 e a carta real como
 Ver [`experimentos/avaliacao_humana/protocolo.md`](experimentos/avaliacao_humana/protocolo.md)
 e §15 do caderno.
 
+**Na demo:** o `notebooks/demo.ipynb` tem um seletor de modelo. O **M1** roda
+em qualquer lugar (inclusive no Colab); **M2** e **M3** chamam o `gemma3:4b`
+via Ollama em `localhost:11434` e, sem ele, mostram uma mensagem explicando o
+que falta. Com uma semente fixa, M1 e M2 produzem a **mesma estrutura** — a
+única diferença visível é o texto.
+
 ## Próximos passos
 
 - [x] ~~Mapeamento de mecânicas a partir do nome~~ — mantido em
@@ -475,9 +480,8 @@ e §15 do caderno.
 - [ ] **Avaliação humana cega (P-04)** — protocolo, amostra de 40 blocos e
       formulário offline prontos; falta recrutar 3–5 avaliadores e coletar —
       `experimentos/avaliacao_humana/`
-- [ ] Classificador de cor em PyTorch — não mais como filtro, mas como
-      *métrica de diagnóstico* ("o quão on-color este texto gerado
-      ficou?"), compatível com a escolha de deixar a geração livre
-- [ ] Grafo de transições de palavras por cor (NetworkX) + visualizações
-      (Matplotlib) — bom complemento visual pro relatório, mostrando o
-      "espaço" de onde a cadeia de Markov sorteia
+
+O escopo do trabalho termina no gerador e na comparação dos três braços. Ideias
+que ficaram de fora de propósito — classificador de cor em PyTorch como
+métrica de diagnóstico, grafo de transições com NetworkX/Matplotlib — não
+fazem parte da entrega e não estão no `requirements.txt`.

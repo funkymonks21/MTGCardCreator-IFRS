@@ -10,6 +10,17 @@ from .generator import (
     gerar_carta,
 )
 from .subtipos import ModeloSubtipos
+from .llm import (
+    MODELOS,
+    ROTULO_MODELO,
+    FalhaGeracao,
+    OllamaIndisponivel,
+    gerar_carta_m2,
+    gerar_carta_m3,
+    gerar_com_modelo,
+    ollama_disponivel,
+    refinar_texto,
+)
 from .imagem import (
     ArtePollinations,
     ResultadoArte,
@@ -38,6 +49,15 @@ __all__ = [
     "ModeloSubtipos",
     "InferenciaTipo",
     "inferir_tipo_por_nome",
+    "MODELOS",
+    "ROTULO_MODELO",
+    "FalhaGeracao",
+    "OllamaIndisponivel",
+    "gerar_carta_m2",
+    "gerar_carta_m3",
+    "gerar_com_modelo",
+    "ollama_disponivel",
+    "refinar_texto",
     "gerar_arte",
     "gerar_arte_detalhada",
     "ResultadoArte",

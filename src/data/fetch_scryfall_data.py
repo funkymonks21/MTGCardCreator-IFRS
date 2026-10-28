@@ -15,7 +15,7 @@ O que o script faz:
        emblemas, cartas de plano, Vanguard, cartas sem oracle_text)
     5. Salva um dataset limpo em data/processed/cards.csv e
        data/processed/cards.parquet, prontos para as próximas etapas
-       (NLTK, Word2Vec, scikit-learn, PyTorch)
+       (NLTK, Word2Vec, scikit-learn)
 
 Nota sobre o formato: a Bulk Data API da Scryfall passou a servir os
 arquivos como JSON Lines comprimido em gzip (campo `jsonl_download_uri`,

@@ -1332,5 +1332,31 @@ Protocolo completo, instruções para os avaliadores e critérios de nota em
 canais de envio (arquivo, link, servidor local) e checklist de coleta em
 `experimentos/avaliacao_humana/convite.md`.
 
+---
+
+## 16. Da experimentação para a interface
+
+A demo (`notebooks/demo.ipynb`) passou a gerar os três braços, e para isso os
+prompts do M2 e do M3 saíram dos runners e foram para
+`src/pipeline/llm.py`. A cópia é **literal** — mesmo system prompt, mesmas
+temperaturas (`M2`: 0,4 / top_p 0,9; `M3`: 0,9 / top_p 0,95), mesmo schema e
+mesma regra de 1 retry. Se o prompt da interface fosse "melhorado", o que
+aparece na apresentação deixaria de ser o que foi medido.
+
+Dois detalhes de desenho do demo:
+
+- **O tipo do M3 é resolvido pelo pipeline e imposto ao LLM.** É o mesmo
+  desenho do Modo A: tipo, nome e cor são dados; o LLM gera o resto. Sem isso,
+  os três braços produziriam tipos diferentes e a comparação lado a lado não
+  faria sentido.
+- **M1 e M2 compartilham a semente.** Com a mesma semente, a estrutura é
+  idêntica e a única diferença visível é o texto — exatamente o contraste que
+  o M2 existe para medir.
+
+Quem tem Ollama local pode conferir a reprodutibilidade: para a carta
+`real::Longbow Archer` (semente `2634650529`, cor `Branco`, tipo `Criatura`),
+`gerar_carta_m2` e `gerar_carta_m3` devolvem o **mesmo texto** registrado em
+`resultados_m2.jsonl` e `resultados_m3.jsonl`.
+
 
 

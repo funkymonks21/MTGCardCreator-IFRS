@@ -10,10 +10,14 @@ gensim
 # src/pipeline/estrutura.py) e podem ate dar resultados invalidos. Ao
 # retreinar os modelos, atualize esta versao junto.
 scikit-learn==1.9.1
-networkx
-matplotlib
-torch
-opencv-python
+# Usado pelos scripts de avaliacao do estudo (bootstrap, McNemar, ICC) em
+# experimentos/. Vem como dependencia do scikit-learn, mas fica explicito
+# para o estudo rodar so com este arquivo.
+scipy
 Pillow
 ipywidgets
 joblib
+
+# M2 e M3 nao sao bibliotecas Python: usam o Ollama local, um servico a parte.
+# Instale o Ollama (https://ollama.com), rode `ollama serve` e baixe o modelo
+# com `ollama pull gemma3:4b`. Sem ele, o M1 continua funcionando normalmente.
