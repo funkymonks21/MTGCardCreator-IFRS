@@ -170,7 +170,8 @@ MTGCardCreator-IFRS/
 │   ├── modelos_estruturais.pkl    # regressões de custo de mana e P/T (versionado no git)
 │   └── modelos_subtipos.pkl       # distribuições de subtipos + regras de Aura/Equip/Equipped/Crew/Saga (versionado no git)
 ├── notebooks/
-│   └── demo.ipynb              # interface do projeto: seletor M1/M2/M3, roda no Colab (M1) ou com Ollama local
+│   ├── demo.ipynb              # interface do projeto: seletor M1/M2/M3, roda no Colab (M1) ou com Ollama local
+│   └── app_colab.ipynb         # sobe o app web no Colab, com Ollama + gemma3:4b e link público
 ├── src/
 │   ├── data/
 │   │   └── fetch_scryfall_data.py      # obtenção dos dados brutos
@@ -196,7 +197,9 @@ MTGCardCreator-IFRS/
 │   ├── run_m1.py / run_m2.py / run_m3.py / run_modo_b.py
 │   ├── avaliar.py / avaliar_modo_b.py  # métricas e relatórios (.md + .json)
 │   └── avaliacao_humana/               # P-04: protocolo cego, formulário offline e análise
+├── app.py                              # app web (Gradio): as duas abas, roda local ou no Colab
 ├── requirements.txt
+├── requirements-app.txt                # requirements.txt + gradio
 └── README.md
 ```
 
@@ -431,6 +434,58 @@ em qualquer lugar (inclusive no Colab); **M2** e **M3** chamam o `gemma3:4b`
 via Ollama em `localhost:11434` e, sem ele, mostram uma mensagem explicando o
 que falta. Com uma semente fixa, M1 e M2 produzem a **mesma estrutura** — a
 única diferença visível é o texto.
+
+## Demo em app (Gradio)
+
+[`app.py`](app.py) transforma a mesma geração em uma página web, para a aula e
+para quem quiser brincar. Ele não reimplementa nada: chama
+`pipeline.llm.gerar_com_modelo`, o mesmo dispatch do notebook, com os prompts
+e validações medidos no estudo.
+
+Duas abas:
+
+- **Gerar carta** — seletor M1/M2/M3, nome, cor, tipo, semente, peso da cor,
+  parágrafos, pesos dos n-gramas e arte opcional.
+- **Comparar os três** — a mesma entrada nos três braços de uma vez. Como M1 e
+  M2 compartilham a semente, a estrutura é idêntica e a diferença de texto
+  fica visível lado a lado.
+
+### Local
+
+```bash
+pip install -r requirements-app.txt
+python app.py              # http://127.0.0.1:7860
+```
+
+O M2/M3 precisam do Ollama no ar (`ollama serve` e `ollama pull gemma3:4b`).
+Sem ele, o app abre normalmente e só o M1 funciona — o aviso na tela diz o que
+falta.
+
+### Link público temporário
+
+```bash
+python app.py --share      # ou GRADIO_SHARE=1 python app.py
+```
+
+O Gradio abre um túnel e devolve uma URL `https://....gradio.live`. O link
+existe enquanto o processo estiver rodando (~72 h no máximo) e não exige que
+ninguém instale Python ou Ollama. A geração continua rodando **na sua
+máquina**.
+
+### Tudo pelo Colab (com o Ollama junto)
+
+[`notebooks/app_colab.ipynb`](notebooks/app_colab.ipynb) instala o Ollama no
+runtime, baixa o `gemma3:4b`, sobe o app e publica o link com `share=True`.
+Assim o link público roda no Colab, sem depender da sua máquina — mesmo modelo
+do estudo, custo zero, sem chave de API.
+
+> Use um runtime com **GPU (T4)**. Na CPU o `gemma3:4b` leva minutos por
+> carta (o M1 continua instantâneo). O link morre quando a sessão do Colab
+> encerra; para a aula, suba o app alguns minutos antes.
+
+`OLLAMA_URL` e `OLLAMA_MODEL` continuam valendo (úteis para apontar o app para
+um Ollama em outra máquina), mas o padrão é `http://localhost:11434` com
+`gemma3:4b` — exatamente o que foi medido.
 
 ## Próximos passos
 

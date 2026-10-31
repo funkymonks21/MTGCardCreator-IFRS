@@ -1,0 +1,11 @@
+# Dependências do app web (app.py), separadas de requirements.txt para que o
+# estudo (experimentos/) continue rodando com o conjunto mínimo validado.
+#
+#   pip install -r requirements-app.txt
+#   python app.py
+#
+# Gradio 6 mudou alguns parâmetros de componente em relação à 5.x
+# (ex.: `buttons=["download"]` no lugar de `show_download_button`,
+# `theme` no `launch()`). O app foi testado na 6.31.
+-r requirements.txt
+gradio>=6,<7

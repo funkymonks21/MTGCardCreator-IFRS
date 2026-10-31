@@ -16,6 +16,9 @@ venv/
 assets/cache_arte/*
 !assets/cache_arte/.gitkeep
 
+# Cache do Gradio (flags/túneis do app.py)
+.gradio/
+
 # Ambientes/IDE
 .ipynb_checkpoints/
 .vscode/

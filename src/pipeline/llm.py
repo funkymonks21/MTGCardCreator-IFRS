@@ -30,8 +30,10 @@ A URL e o modelo podem ser trocados por ambiente:
     OLLAMA_URL=http://localhost:11434
     OLLAMA_MODEL=gemma3:4b
 
-No Colab não há Ollama: as funções levantam `OllamaIndisponivel` com uma
-mensagem explicando o que falta. O M1 funciona em qualquer lugar.
+No Colab, o notebook `notebooks/app_colab.ipynb` sobe o Ollama no próprio
+runtime. Sem Ollama (ou sem endpoint configurado), as funções levantam
+`OllamaIndisponivel` com uma mensagem explicando o que falta. O M1 funciona em
+qualquer lugar.
 
 Uso
 ===
