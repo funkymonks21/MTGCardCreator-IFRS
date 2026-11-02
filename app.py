@@ -110,11 +110,16 @@ def _resumo_ollama() -> str:
     )
 
 
-def _detalhes(carta, avisos) -> str:
+def _detalhes(carta, avisos, nome_pedido: str = "") -> str:
     """Ficha da carta em Markdown -- o que a apresentação precisa mostrar."""
-    linhas = [
-        f"### {carta.nome}",
-        "",
+    linhas = [f"### {carta.nome}", ""]
+    pedido = (nome_pedido or "").strip()
+    if pedido and pedido != carta.nome:
+        # O M3 trata o nome como TEMA: o schema pede que o modelo crie o
+        # próprio nome (é o desenho medido no estudo). Mostrar o pedido
+        # evita a impressão de que a entrada foi ignorada.
+        linhas += [f"**Nome pedido:** {pedido}", ""]
+    linhas += [
         f"**Modelo:** {ROTULO_MODELO.get(carta.modelo, carta.modelo)}",
         f"**Tipo:** {carta.tipo_linha or carta.tipo}",
         f"**Custo de mana:** {carta.custo_mana or '— (terreno)'}",
@@ -195,7 +200,7 @@ def gerar(
             f"O M3 não produziu uma carta válida nesta tentativa.\n\n{exc}\n\n"
             "A amostragem do LLM é estocástica: clique de novo para tentar outra."
         )
-    return carta.imagem_final, _detalhes(carta, avisos)
+    return carta.imagem_final, _detalhes(carta, avisos, nome)
 
 
 def comparar(nome, cor, seed, usar_arte):
@@ -207,6 +212,7 @@ def comparar(nome, cor, seed, usar_arte):
     imagens, linhas = [], []
     avisos = []
     seed_int = _seed(seed)
+    linhas += [f"**Nome pedido:** {nome} · **cor:** {cor}", ""]
 
     for modelo in MODELOS:
         try:

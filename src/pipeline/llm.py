@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import urllib.error
 import urllib.request
@@ -437,11 +438,15 @@ def gerar_carta_m3(
     compararia cartas de tipos diferentes.
 
     Levanta `FalhaGeracao` se as duas tentativas forem inválidas.
+
+    Sem semente (`None`), sorteia uma: o LLM é estocástico, e fixar 0 aqui
+    faria a demo devolver sempre a mesma carta. A semente sorteada aparece em
+    `Carta.semente_usada`, então o resultado continua reproduzível.
     """
     if cor not in CORES_EN:
         raise ValueError(f"Cor inválida: {cor!r}. Use uma de {list(CORES_EN)}.")
     nome = (nome or "").strip() or "Carta Sem Nome"
-    seed_base = 0 if seed is None else int(seed)
+    seed_base = random.randrange(1, 2**31 - 1) if seed is None else int(seed)
     tipo_chave, tipo_origem, tipo_motivo = resolver_tipo(nome, tipo, seed=seed_base)
     tipo_en = TIPO_PARA_ENUM[tipo_chave]
 
