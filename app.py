@@ -203,15 +203,20 @@ def gerar(
     return carta.imagem_final, _detalhes(carta, avisos, nome)
 
 
-def comparar(nome, cor, seed, usar_arte):
+def comparar(nome, cor, seed, usar_arte, peso_cor, n_paragrafos, *ngramas):
     """Gera os três braços com a MESMA entrada, lado a lado.
 
     É o argumento da apresentação em uma tela: o M1 e o M2 compartilham a
     semente (estrutura idêntica), e o M3 recebe o mesmo nome, cor e tipo.
+
+    Os pesos (cor e n-gramas) e o número de parágrafos só afetam M1/M2; no
+    M3 o texto vem inteiro do LLM. Os valores usados aparecem no rodapé.
     """
     imagens, linhas = [], []
     avisos = []
     seed_int = _seed(seed)
+    pesos = _pesos_ngrama(*ngramas)
+    paragrafos = None if n_paragrafos in (None, "", "Automatico") else int(n_paragrafos)
     linhas += [f"**Nome pedido:** {nome} · **cor:** {cor}", ""]
 
     for modelo in MODELOS:
@@ -220,7 +225,10 @@ def comparar(nome, cor, seed, usar_arte):
                 modelo,
                 nome,
                 cor,
+                peso_cor=float(peso_cor),
                 tipo=TIPO_AUTOMATICO,
+                pesos_ngrama=pesos,
+                n_paragrafos=paragrafos,
                 usar_arte=bool(usar_arte),
                 avisar_arte=avisos.append,
                 seed=seed_int,
@@ -244,10 +252,11 @@ def comparar(nome, cor, seed, usar_arte):
 
     if avisos:
         linhas.append(f"> ⚠️ {' '.join(avisos)}")
+    pesos_txt = ", ".join(f"{ordem}: {v:.2f}" for ordem, v in sorted(pesos.items()))
     linhas += [
         "",
-        f"_Padrões do pipeline: tipo automático, peso da cor "
-        f"{PESO_COR_PADRAO:.2f}, pesos de n-grama padrão._",
+        f"_Parâmetros usados: tipo automático · peso da cor {float(peso_cor):.2f} · "
+        f"parágrafos {paragrafos or 'automático'} · n-gramas {{{pesos_txt}}}_",
     ]
     return imagens, "\n".join(linhas)
 
@@ -371,15 +380,39 @@ def criar_app() -> gr.Blocks:
                 "A mesma entrada nos três braços. **M1 e M2 compartilham a "
                 "semente**, então a estrutura é idêntica — a diferença que "
                 "aparece é a do texto. O M3 recebe o mesmo nome, cor e tipo.\n\n"
-                "_Esta aba é independente da aba **Gerar carta**: usa os "
-                "padrões do pipeline (tipo automático, peso da cor 0,70 e "
-                "pesos de n-grama padrão) e só os campos abaixo._"
+                "_Os pesos e o número de parágrafos valem só para **M1/M2**: "
+                "no M3 o texto vem inteiro do LLM. Esta aba tem controles "
+                "próprios, independentes da aba **Gerar carta**._"
             )
             with gr.Row():
                 c_nome = gr.Textbox(value="Serra Angel", label="Nome da carta")
                 c_cor = gr.Dropdown(choices=list(COLOR_PIE), value="Branco", label="Cor")
                 c_seed = gr.Number(value=SEED_EXEMPLO, precision=0, label="Semente")
+            with gr.Row():
+                c_peso = gr.Slider(
+                    0.0, 1.0, value=PESO_COR_PADRAO, step=0.1,
+                    label="Peso da cor (M1/M2)",
+                )
+                c_parag = gr.Dropdown(
+                    choices=[
+                        ("Automático (pelos dados)", "Automatico"),
+                        ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"),
+                    ],
+                    value="Automatico",
+                    label="Parágrafos de habilidade (M1/M2)",
+                )
                 c_arte = gr.Checkbox(value=False, label="Arte pela API (mais lento)")
+            with gr.Accordion("Pesos dos n-gramas (M1/M2)", open=False):
+                c_ngramas = [
+                    gr.Slider(
+                        0.0, 1.0, value=PESOS_NGRAMA_PADRAO.get(o, 0.0),
+                        step=0.05, label=rotulo,
+                    )
+                    for o, rotulo in {
+                        0: "Unigrama (0)", 1: "Bigrama (1)", 2: "Trigrama (2)",
+                        3: "Tetragrama (3)", 4: "Pentagrama (4)",
+                    }.items()
+                ]
             c_botao = gr.Button("Gerar os três", variant="primary")
             c_galeria = gr.Gallery(
                 label="M1 · M2 · M3", columns=3, height=420,
@@ -389,7 +422,7 @@ def criar_app() -> gr.Blocks:
 
             c_botao.click(
                 comparar,
-                inputs=[c_nome, c_cor, c_seed, c_arte],
+                inputs=[c_nome, c_cor, c_seed, c_arte, c_peso, c_parag, *c_ngramas],
                 outputs=[c_galeria, c_textos],
             )
 
