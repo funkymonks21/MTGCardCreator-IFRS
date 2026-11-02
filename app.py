@@ -244,6 +244,11 @@ def comparar(nome, cor, seed, usar_arte):
 
     if avisos:
         linhas.append(f"> ⚠️ {' '.join(avisos)}")
+    linhas += [
+        "",
+        f"_Padrões do pipeline: tipo automático, peso da cor "
+        f"{PESO_COR_PADRAO:.2f}, pesos de n-grama padrão._",
+    ]
     return imagens, "\n".join(linhas)
 
 
@@ -365,7 +370,10 @@ def criar_app() -> gr.Blocks:
             gr.Markdown(
                 "A mesma entrada nos três braços. **M1 e M2 compartilham a "
                 "semente**, então a estrutura é idêntica — a diferença que "
-                "aparece é a do texto. O M3 recebe o mesmo nome, cor e tipo."
+                "aparece é a do texto. O M3 recebe o mesmo nome, cor e tipo.\n\n"
+                "_Esta aba é independente da aba **Gerar carta**: usa os "
+                "padrões do pipeline (tipo automático, peso da cor 0,70 e "
+                "pesos de n-grama padrão) e só os campos abaixo._"
             )
             with gr.Row():
                 c_nome = gr.Textbox(value="Serra Angel", label="Nome da carta")
