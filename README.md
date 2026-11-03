@@ -70,10 +70,11 @@ O pipeline monta um prompt a partir do **nome + tipo + texto** (a cor define a
 paleta; o tipo define a cena), chama uma API de imagem gratuita e **sem
 chave** ([Pollinations.ai](https://pollinations.ai/)) e desenha a moldura em
 código — borda preta com cantos arredondados, painel do título com gradiente
-da cor, janela da arte com vinheta, caixa de tipo, caixa de texto translúcida
-e selo de poder/resistência. As fontes são livres (Cinzel para títulos, EB
-Garamond para o corpo — ambas SIL OFL, em `assets/fonts/`); a Beleren oficial
-é proprietária e **não** é distribuída aqui.
+da cor, janela da arte com vinheta, caixa de tipo, caixa de texto tipo
+pergaminho, **símbolos de mana desenhados** e selo de poder/resistência. As
+fontes são livres (Cinzel para títulos, EB Garamond para o corpo — ambas SIL
+OFL, em `assets/fonts/`); a Beleren oficial é proprietária e **não** é
+distribuída aqui.
 
 - **Proporção correta da arte:** a ilustração é pedida à API **já na
   proporção da janela** de arte da carta (`tamanho_janela_arte()`, ~594×372),
@@ -96,9 +97,22 @@ Garamond para o corpo — ambas SIL OFL, em `assets/fonts/`); a Beleren oficial
 - **Trocando de provedor:** `ArtePollinations` isola a chamada HTTP no
   contrato `gerar(prompt, largura, altura, seed)`; trocar por Hugging Face,
   Stability etc. é implementar a mesma assinatura.
+- **Símbolos originais:** os símbolos de custo e de habilidade (`{2}{W}`,
+  `{T}`, `{X}`...) são desenhados em código em `src/pipeline/simbolos.py`
+  (discos coloridos + sol/gota/lua/chama/árvore/seta), **não** são os SVGs
+  oficiais da Wizards. Assim o app é distribuível sem carregar marca de
+  terceiros.
 
-Sem `usar_arte`, a figura sai num placeholder simples (rápido, offline), que é
-o que a geração em lote usa por padrão.
+Sem `usar_arte`, a carta **não** cai mais num placeholder rústico: usa a
+mesma moldura da carta com arte e troca só a ilustração por uma **arte
+procedural** (gradiente da cor + manchas de luz + marca d'água do símbolo),
+rápida e offline. No app, a ficha mostra "Arte: procedural local (a API não
+foi chamada)".
+
+> **Propriedade intelectual.** A moldura, os símbolos e a arte procedural são
+> desenhados em código; as fontes são SIL OFL. Nenhum asset oficial da
+> Wizards of the Coast é baixado ou redistribuído. As cartas são *fan-made*,
+> para uso acadêmico/demonstração, e o projeto não é afiliado à Wizards.
 
 **Inferência do tipo pelo nome** (`src/pipeline/tipo_por_nome.py`): com a
 opção `Automático (pelo nome)`, o sistema usa POS tagging do NLTK + WordNet
@@ -534,9 +548,16 @@ um Ollama em outra máquina), mas o padrão é `http://localhost:11434` com
       montado a partir do nome/tipo/texto, cache em disco e fallback
       procedural local — `src/pipeline/imagem.py`
 - [x] **Moldura realista em código** (frame): painel do título com
-      gradiente da cor, janela da arte, caixa de tipo, caixa de texto
-      translúcida e selo de P/T, com fontes livres (Cinzel/EB Garamond) —
-      `src/pipeline/imagem.py`
+      gradiente da cor, janela da arte, caixa de tipo, caixa de texto tipo
+      pergaminho, selo de P/T e rodapé "não oficial", com fontes livres
+      (Cinzel/EB Garamond) — `src/pipeline/imagem.py`
+- [x] **Símbolos de mana/habilidade desenhados em código** (W/U/B/R/G,
+      genéricos, X, híbridos, {T}/{Q}), sem usar SVGs oficiais e com
+      renderização no custo e no meio do texto de regras —
+      `src/pipeline/simbolos.py`
+- [x] **Caminho sem arte usando a mesma moldura**, com arte procedural no
+      lugar da ilustração (em vez do placeholder rústico) —
+      `src/pipeline/generator.py` / `src/pipeline/imagem.py`
 - [x] **Estudo comparativo dos três braços** (M1 Markov + regressão, M2 com
       refino de texto, M3 LLM pura) sobre 1.000 cartas por braço — resultados
       em `experimentos/relatorio_metricas.md` e §13 do caderno

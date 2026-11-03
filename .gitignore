@@ -19,6 +19,9 @@ assets/cache_arte/*
 # Cache do Gradio (flags/túneis do app.py)
 .gradio/
 
+# Renders locais de inspeção (ex.: _sem_arte.png, _com_arte.png)
+_*.png
+
 # Ambientes/IDE
 .ipynb_checkpoints/
 .vscode/

@@ -39,10 +39,10 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from .estrutura import ModeloEstrutural
-from .imagem import compor_frame, gerar_arte_detalhada
+from .imagem import arte_fallback, compor_frame, gerar_arte_detalhada
 from .regras_tipo import TEXTO_VAZIO, ajustar_subtipos_por_texto, aplicar_regras_texto
 from .subtipos import ModeloSubtipos
 from .texto_markov import PESOS_NGRAMA_PADRAO, PESO_TRIGRAMA_PADRAO, carregar_modelo
@@ -488,11 +488,17 @@ def renderizar_imagem(
     a carta depois de trocar o texto de regras, sem repetir a lógica de arte.
     Devolve `(imagem, arte_da_api, arte_motivo)`.
 
+    Com `usar_arte=False` a API NÃO é chamada: entra uma arte procedural
+    determinística (`arte_fallback`), mas a MESMA moldura da carta com arte.
+    Nesse caso `arte_da_api` fica `None` (ou seja, "arte não pedida"),
+    diferente de `False` (API falhou e caiu no fallback).
+
     `cor` é o nome em português (usado no fallback e no frame) e `cor_abrev` é
     a letra de mana (`W/U/B/R/G`) esperada pelas funções de arte.
     """
     arte_da_api: Optional[bool] = None
     arte_motivo: Optional[str] = None
+    cor_arte = cor_abrev or COLOR_PIE.get(cor, {}).get("abrev", "C")
 
     if usar_arte:
         # Etapas 7-8: arte via API de imagem (com fallback local) e
@@ -503,7 +509,7 @@ def renderizar_imagem(
             nome,
             tipo_linha,
             texto_regras,
-            cor_abrev,
+            cor_arte,
             seed=seed_arte,
             avisar=avisar_arte,
         )
@@ -517,11 +523,23 @@ def renderizar_imagem(
             custo_mana=custo_mana,
             poder=poder,
             resistencia=resistencia,
-            cor=cor_abrev,
+            cor=cor_arte,
         )
     else:
-        imagem = _imagem_placeholder(
-            nome, cor, tipo_linha, custo_mana, texto_regras, poder, resistencia
+        # Sem API: usa a MESMA moldura da carta com arte e troca só a
+        # ilustração por uma arte procedural. Antes esse caminho caía num
+        # retângulo liso ("placeholder"), que destoava completamente do
+        # frame bonito -- o usuário via dois produtos diferentes.
+        arte = arte_fallback(nome, cor_arte, seed=seed_arte or 0)
+        imagem = compor_frame(
+            arte,
+            nome=nome,
+            tipo_linha=tipo_linha,
+            texto_regras=texto_regras,
+            custo_mana=custo_mana,
+            poder=poder,
+            resistencia=resistencia,
+            cor=cor_arte,
         )
 
     return imagem, arte_da_api, arte_motivo
@@ -559,81 +577,9 @@ def renderizar_carta(
     return carta
 
 
-def _imagem_placeholder(
-    nome: str,
-    cor: str,
-    tipo_linha: str,
-    custo_mana: str,
-    texto_regras: str,
-    poder: Optional[int] = None,
-    resistencia: Optional[int] = None,
-) -> Image.Image:
-    """Placeholder usado quando a arte/moldura não é pedida (`usar_arte=False`).
-
-    Desenha um retângulo com nome, tipo, custo, texto e P/T só para a
-    interface ter uma imagem real para exibir. A composição de verdade é
-    `pipeline.imagem.compor_frame` (Pillow, não OpenCV)."""
-    largura, altura = 480, 680
-    img = Image.new("RGB", (largura, altura), color=COLOR_PIE[cor]["hex"])
-    draw = ImageDraw.Draw(img)
-
-    # A fonte bitmap padrão do PIL não renderiza acentos corretamente;
-    # como isso é só o placeholder visual (a moldura de verdade usa as
-    # fontes de assets/fonts/), removemos os acentos apenas para o texto
-    # desenhado na imagem.
-    nome_img = _remover_acentos(nome)
-    tipo_img = _remover_acentos(tipo_linha)
-    texto_img = _remover_acentos(texto_regras)
-
-    draw.rectangle([10, 10, largura - 10, altura - 10], outline="black", width=4)
-    draw.text((30, 25), nome_img, fill="black")
-    # Linha de tipo logo abaixo do nome (ex: "Creature — Human Warrior").
-    draw.text((30, 45), tipo_img, fill="black")
-    # Custo de mana alinhado à direita (o custo pode ser longo tipo
-    # "{2}{W}{W}", herdo do formato do Oracle). Terrenos não têm custo --
-    # nesse caso o campo vem vazio e simplesmente não desenhamos nada.
-    if custo_mana:
-        largura_custo = draw.textlength(custo_mana)
-        draw.text((largura - 30 - largura_custo, 25), custo_mana, fill="black")
-    draw.rectangle([30, 420, largura - 30, altura - 60], fill="white", outline="black")
-    draw.multiline_text((40, 435), _quebrar_linhas(texto_img, 55), fill="black")
-    # Poder/resistência no rodapé, como nas cartas reais (só se houver --
-    # instants, sorceries, artefatos, encantamentos não-criatura e terrenos
-    # não têm).
-    if poder is not None and resistencia is not None:
-        draw.text((largura - 75, altura - 45), f"{poder}/{resistencia}", fill="black")
-
-    return img
-
-
 def _remover_acentos(texto: str) -> str:
-    """Normaliza para ASCII só para desenho na imagem placeholder (ver
-    comentário acima); o texto "de verdade" retornado em Carta.texto_regras
-    continua com acentuação normal."""
+    """Normaliza para ASCII, usado para comparar nomes de tipo digitados
+    com ou sem acento ("Criatura"/"criatura", "Feitico"/"Feitiço") sem
+    depender de acentuação exata."""
     nfkd = unicodedata.normalize("NFKD", texto)
     return "".join(c for c in nfkd if not unicodedata.combining(c))
-
-
-def _quebrar_linhas(texto: str, largura_max: int) -> str:
-    """Util simples para não estourar a caixa de texto do placeholder.
-
-    Importante: respeita as quebras de linha que já vêm em `texto` (ex: a
-    linha de keywords separada do corpo, ver pipeline.texto_markov) --
-    cada linha original é quebrada/reflow independentemente, nunca
-    juntada com a linha seguinte. Um `texto.split()` ingênuo trataria
-    "\n" como só mais um espaço e desfaria essa separação visual."""
-    linhas_finais = []
-    for linha_original in texto.split("\n"):
-        palavras = linha_original.split()
-        if not palavras:
-            linhas_finais.append("")
-            continue
-        linha_atual = ""
-        for palavra in palavras:
-            if len(linha_atual) + len(palavra) + 1 <= largura_max:
-                linha_atual = f"{linha_atual} {palavra}".strip()
-            else:
-                linhas_finais.append(linha_atual)
-                linha_atual = palavra
-        linhas_finais.append(linha_atual)
-    return "\n".join(linhas_finais)

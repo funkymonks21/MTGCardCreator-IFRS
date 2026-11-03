@@ -142,6 +142,8 @@ def _detalhes(carta, avisos, nome_pedido: str = "") -> str:
         origem = "API (Pollinations)" if carta.arte_da_api else "fallback local"
         detalhe = f" — {carta.arte_motivo}" if carta.arte_motivo else ""
         linhas.append(f"**Arte:** {origem}{detalhe}")
+    else:
+        linhas.append("**Arte:** procedural local (a API não foi chamada)")
     if avisos:
         linhas += ["", f"> ⚠️ {' '.join(avisos)}"]
     linhas += [
@@ -385,8 +387,9 @@ def criar_app() -> gr.Blocks:
                     usar_arte = gr.Checkbox(
                         value=True,
                         label="Arte pela API (Pollinations, ~10–30s)",
-                        info="Sem chave. Se o limite gratuito for atingido, "
-                             "a carta usa um fundo procedural e avisa.",
+                        info="Sem chave. Desligado: arte procedural local, "
+                             "sem internet. Se o limite gratuito for atingido, "
+                             "a carta usa o fallback e avisa.",
                     )
 
                     with gr.Accordion("Pesos dos n-gramas (só M1/M2)", open=False):
@@ -480,7 +483,10 @@ def criar_app() -> gr.Blocks:
                     value="Automatico",
                     label="Parágrafos de habilidade (M1/M2)",
                 )
-                c_arte = gr.Checkbox(value=False, label="Arte pela API (mais lento)")
+                c_arte = gr.Checkbox(
+                    value=False,
+                    label="Arte pela API (desligado = procedural)",
+                )
             with gr.Accordion("Pesos dos n-gramas (M1/M2)", open=False):
                 c_ngramas = [
                     gr.Slider(
@@ -507,6 +513,10 @@ def criar_app() -> gr.Blocks:
 
         gr.Markdown(
             "---\n"
+            "**Fan-made / não oficial.** A moldura, os símbolos de mana e a "
+            "arte procedural são desenhados em código; as fontes são livres "
+            "(SIL OFL) e nenhum asset da Wizards of the Coast é usado ou "
+            "distribuído. Uso acadêmico.\n\n"
             "Estudo: comparação M1/M2/M3 com cartas reais × fictícias, "
             "split holdout/reserva (D-006) e avaliação humana. "
             "Código e números em `experimentos/`."

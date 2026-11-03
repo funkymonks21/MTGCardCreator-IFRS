@@ -21,9 +21,12 @@ Decisões de design
   do ar), `gerar_arte` cai num degradê procedural determinístico derivado
   do nome da carta -- a geração NUNCA quebra por causa da arte.
 - **Moldura em código.** O frame é desenhado com Pillow (bordas, painéis,
-  gradiente da cor, caixa de texto translúcida, selo de P/T, símbolo de
-  custo). Não usamos imagens/templates oficiais da Wizards (material
-  protegido): o visual é uma releitura vetorial própria.
+  gradiente da cor, caixa de texto translúcida, selo de P/T, rodapé). Não
+  usamos imagens/templates oficiais da Wizards (material protegido): o
+  visual é uma releitura vetorial própria.
+- **Símbolos desenhados.** Os símbolos de custo e de habilidade também são
+  desenhados em código (`pipeline.simbolos`), em vez de baixar os SVGs
+  oficiais. Assim o app é distribuível sem carregar marca de terceiros.
 - **Fontes livres.** Título em Cinzel e corpo em EB Garamond, ambas SIL OFL
   (uso livre), versionadas em `assets/fonts/`. A Beleren/Matrix oficial é
   proprietária e não é distribuída aqui. Se as fontes não estiverem
@@ -45,15 +48,19 @@ from __future__ import annotations
 
 import hashlib
 import io
+import math
 import random
 import time
 import urllib.parse
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+
+from .simbolos import desenhar_custo, desenhar_simbolo, dividir
 
 # ---------------------------------------------------------------------------
 # Constantes de layout. A carta final tem a proporção "real" do Magic
@@ -503,42 +510,95 @@ def arte_fallback(
     seed: int = 0,
 ) -> Image.Image:
     """Arte procedural determinística, usada quando a API não está
-    disponível. Desenha um degradê de duas cores (derivadas da cor da
-    carta e do nome) com algumas formas suaves, só para a carta não ficar
-    sem ilustração. Não é arte "de verdade" -- é o plano B.
+    disponível (ou quando o usuário pede a carta SEM arte).
+
+    É um fundo abstrato "de mana": gradiente radial na cor da carta,
+    manchas de luz desfocadas, uma marca d'água grande do símbolo da cor,
+    vinheta e um grão leve. Não tenta imitar uma ilustração de verdade --
+    assume o papel de arte provisória, mas com o mesmo acabamento da
+    moldura (antes o caminho sem arte caía num retângulo liso e destoava).
 
     Por padrão gera já na proporção da JANELA DE ARTE (não da carta
-    inteira), para ficar igual ao que a API devolveria."""
+    inteira), para ficar igual ao que a API devolveria. É determinística:
+    mesma `seed` + mesmo `nome` -> mesma imagem.
+    """
     if largura is None or altura is None:
         largura, altura = tamanho_janela_arte()
     base = CORES_FRAME.get(cor, CORES_FRAME["C"])
     rng = random.Random((seed or 0) ^ _hash_int(nome))
+    escuro = _hex_para_rgb(base["escuro"])
+    claro = _hex_para_rgb(base["claro"])
 
-    # Degradê vertical entre o tom escuro e o claro da cor.
-    topo = _hex_para_rgb(base["escuro"])
-    baixo = _hex_para_rgb(base["claro"])
-    img = Image.new("RGB", (largura, altura), topo)
-    draw = ImageDraw.Draw(img)
-    for y in range(altura):
-        f = y / max(1, altura - 1)
-        draw.line(
-            [(0, y), (largura, y)],
-            fill=tuple(int(topo[i] * (1 - f) + baixo[i] * f) for i in range(3)),
-        )
+    # 1) Fundo: gradiente radial (claro no centro, escuro nas bordas).
+    gradiente = Image.radial_gradient("L").resize((largura, altura), Image.LANCZOS)
+    gradiente = ImageOps.invert(gradiente)
+    img = ImageOps.colorize(gradiente, black=escuro, white=claro).convert("RGBA")
 
-    # Formas suaves semi-transparentes, para dar alguma textura.
-    overlay = Image.new("RGBA", (largura, altura), (255, 255, 255, 0))
-    odraw = ImageDraw.Draw(overlay)
-    for _ in range(9):
-        r = rng.randint(largura // 6, largura // 2)
+    # 2) Manchas de luz desfocadas, para dar profundidade.
+    manchas = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
+    mdraw = ImageDraw.Draw(manchas)
+    for _ in range(7):
+        rx = rng.randint(max(8, largura // 9), max(12, largura // 3))
+        ry = int(rx * rng.uniform(0.55, 1.15))
         cx = rng.randint(0, largura)
         cy = rng.randint(0, altura)
-        alfa = rng.randint(18, 55)
-        tom = tuple(rng.randint(200, 255) for _ in range(3))
-        odraw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=tom + (alfa,))
-    overlay = overlay.filter(ImageFilter.GaussianBlur(radius=largura // 20))
-    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-    return img
+        if rng.random() < 0.3:
+            tom = tuple(max(0, int(v * 0.65)) for v in escuro)
+        else:
+            tom = tuple(min(255, int(v * rng.uniform(1.15, 1.45))) for v in claro)
+        mdraw.ellipse(
+            [cx - rx, cy - ry, cx + rx, cy + ry],
+            fill=tom + (rng.randint(22, 52),),
+        )
+    manchas = manchas.filter(ImageFilter.GaussianBlur(radius=max(6, largura // 16)))
+    img = Image.alpha_composite(img, manchas)
+
+    # 3) Raios de luz diagonais, bem suaves -- quebram a simetria do
+    #    gradiente e dão a sensação de "cena" em vez de fundo de slide.
+    raios = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
+    rdraw = ImageDraw.Draw(raios)
+    origem = (largura * rng.uniform(0.30, 0.70), -altura * 0.08)
+    for _ in range(rng.randint(4, 6)):
+        ang = math.radians(rng.uniform(55, 125))
+        comprimento = max(largura, altura) * 1.5
+        meia_largura = rng.uniform(0.020, 0.055) * largura
+        dx, dy = math.cos(ang) * comprimento, math.sin(ang) * comprimento
+        px, py = -math.sin(ang) * meia_largura, math.cos(ang) * meia_largura
+        rdraw.polygon(
+            [
+                origem,
+                (origem[0] + dx + px, origem[1] + dy + py),
+                (origem[0] + dx - px, origem[1] + dy - py),
+            ],
+            fill=(255, 255, 255, rng.randint(10, 24)),
+        )
+    raios = raios.filter(ImageFilter.GaussianBlur(radius=max(2, largura // 40)))
+    img = Image.alpha_composite(img, raios)
+
+    # 4) Marca d'água discreta do símbolo da cor: lembra que a arte é
+    #    procedural, sem parecer uma ilustração "de verdade".
+    chave_cor = cor if cor in CORES_FRAME else "C"
+    lado_marca = int(min(largura, altura) * 0.62)
+    marca = desenhar_simbolo(chave_cor, lado_marca).copy()
+    marca.putalpha(marca.getchannel("A").point(lambda a: int(a * 0.18)))
+    marca = marca.filter(ImageFilter.GaussianBlur(radius=1.5))
+    img.alpha_composite(
+        marca, ((largura - marca.width) // 2, (altura - marca.height) // 2)
+    )
+
+    # 5) Vinheta: escurece as bordas e puxa o olho para o centro.
+    vinheta = Image.radial_gradient("L").resize((largura, altura), Image.LANCZOS)
+    sombra = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
+    sombra.putalpha(vinheta.point(lambda v: int(v * 0.55)))
+    img = Image.alpha_composite(img, sombra)
+
+    # 6) Grão sutil: evita o aspecto de "degradê de PowerPoint".
+    ruido = Image.effect_noise((largura, altura), 18).convert("L")
+    grao = Image.merge(
+        "RGBA", [ruido, ruido, ruido, Image.new("L", (largura, altura), 12)]
+    )
+    img = Image.alpha_composite(img, grao)
+    return img.convert("RGB")
 
 
 class ArtePollinations:
@@ -658,11 +718,12 @@ def compor_frame(
     """Compõe a carta final: arte + molduras + textos no estilo Magic.
 
     A moldura é desenhada em código (nada de template oficial):
-      - borda preta externa e cantos arredondados;
-      - painel do TÍTULO com degradê da cor, nome à esquerda e custo à
-        direita;
+      - borda preta externa, segundo contorno fino e cantos arredondados;
+      - painel do TÍTULO com degradê da cor, nome à esquerda e custo em
+        SÍMBOLOS desenhados (`pipeline.simbolos`) à direita;
       - janela da ARTE com uma sombra interna sutil;
-      - caixa de TIPO, caixa de TEXTO translúcida e selo de P/T;
+      - caixa de TIPO, caixa de TEXTO tipo pergaminho e selo de P/T;
+      - rodapé discreto com sigilo próprio e o aviso "não oficial";
       - tudo em fontes livres (Cinzel/EB Garamond), caindo na fonte padrão
         do Pillow se os .ttf não estiverem presentes.
 
@@ -681,6 +742,14 @@ def compor_frame(
         fill=estilo.claro + (255,),
         outline=(15, 15, 15, 255),
         width=MARGEM_EXTERNA // 2,
+    )
+    # Segundo contorno, fino e discreto: dá o "acabamento" de carta real
+    # sem competir com a borda preta externa.
+    draw.rounded_rectangle(
+        [6, 6, largura - 7, altura - 7],
+        radius=max(4, RAIO_CANTO - 4),
+        outline=_misturar(estilo.escuro, (0, 0, 0), 0.35) + (255,),
+        width=2,
     )
 
     x0 = MARGEM_EXTERNA
@@ -704,6 +773,18 @@ def compor_frame(
     base.paste(painel_titulo, (x0, y_titulo0), _mascara_arredondada(
         painel_titulo.size, radius=12
     ))
+    # Brilho no topo e sombra na base do painel: o degradê sozinho ficava
+    # chapado. Cores opacas (blend) para não abrir buracos no RGBA.
+    draw.line(
+        [(x0 + 12, y_titulo0 + 2), (x1 - 12, y_titulo0 + 2)],
+        fill=_misturar(estilo.claro, (255, 255, 255), 0.55) + (255,),
+        width=2,
+    )
+    draw.line(
+        [(x0 + 12, y_titulo1 - 2), (x1 - 12, y_titulo1 - 2)],
+        fill=_misturar(estilo.escuro, (0, 0, 0), 0.25) + (255,),
+        width=2,
+    )
 
     # --- janela da arte ---------------------------------------------------
     arte_ajustada = ImageOps.fit(
@@ -732,63 +813,107 @@ def compor_frame(
     ))
     draw = ImageDraw.Draw(base)
 
-    # --- caixa de texto (fundo claro translúcido) ------------------------
+    # --- caixa de texto (fundo pergaminho translúcido) -------------------
     caixa_texto = Image.new("RGBA", (largura_util, y_texto1 - y_texto0), (255, 255, 255, 0))
     cdraw = ImageDraw.Draw(caixa_texto)
     cdraw.rounded_rectangle(
         [0, 0, largura_util - 1, (y_texto1 - y_texto0) - 1],
         radius=8,
-        fill=(255, 255, 255, 210),
+        fill=(250, 246, 233, 238),
         outline=(30, 30, 30, 200),
         width=2,
     )
     base.paste(caixa_texto, (x0, y_texto0), caixa_texto)
 
     # --- fontes -----------------------------------------------------------
-    f_nome = _carregar_fonte(FONTE_TITULO, 34)
-    f_custo = _carregar_fonte(FONTE_TITULO, 30)
-    f_tipo = _carregar_fonte(FONTE_TITULO, 24)
     f_texto = _carregar_fonte(FONTE_TEXTO, 23)
     f_pt = _carregar_fonte(FONTE_TITULO, 34)
 
+    # --- custo de mana (calculado antes do nome, para reservar o espaço) --
+    custo_img: Optional[Image.Image] = None
+    if custo_mana:
+        # Se o custo for muito longo, encolhe para não invadir o nome.
+        tamanho_custo = 36
+        custo_img = desenhar_custo(custo_mana, tamanho_custo)
+        while custo_img.width > largura_util * 0.42 and tamanho_custo > 20:
+            tamanho_custo -= 2
+            custo_img = desenhar_custo(custo_mana, tamanho_custo)
+
+    # --- nome: encolhe (e, no limite, trunca) se o custo ocupar espaço ----
+    disponivel_nome = largura_util - 36
+    if custo_img is not None:
+        disponivel_nome -= custo_img.width + 12
+    tamanho_nome = 34
+    f_nome = _carregar_fonte(FONTE_TITULO, tamanho_nome)
+    while tamanho_nome > 20 and draw.textlength(nome, font=f_nome) > disponivel_nome:
+        tamanho_nome -= 2
+        f_nome = _carregar_fonte(FONTE_TITULO, tamanho_nome)
+    nome_desenho = nome
+    if draw.textlength(nome_desenho, font=f_nome) > disponivel_nome:
+        while (
+            nome_desenho
+            and draw.textlength(nome_desenho + "...", font=f_nome) > disponivel_nome
+        ):
+            nome_desenho = nome_desenho[:-1]
+        nome_desenho = nome_desenho.rstrip() + "..."
+
     # --- textos -----------------------------------------------------------
     draw.text(
-        (x0 + 18, y_titulo0 + 12),
-        nome,
+        (x0 + 18, y_titulo0 + 12 + (34 - tamanho_nome) // 2),
+        nome_desenho,
         font=f_nome,
         fill=estilo.texto,
     )
-    if custo_mana:
-        largura_custo = draw.textlength(custo_mana, font=f_custo)
-        draw.text(
-            (x1 - 18 - largura_custo, y_titulo0 + 16),
-            custo_mana,
-            font=f_custo,
-            fill=estilo.texto,
+    if custo_img is not None:
+        base.alpha_composite(
+            custo_img,
+            (
+                x1 - 18 - custo_img.width,
+                y_titulo0 + (ALTURA_TITULO - custo_img.height) // 2,
+            ),
         )
 
+    # --- linha de tipo: mesma ideia, encolhe/trunca se for longa ----------
+    disponivel_tipo = largura_util - 36
+    tamanho_tipo = 24
+    f_tipo = _carregar_fonte(FONTE_TITULO, tamanho_tipo)
+    while tamanho_tipo > 16 and draw.textlength(tipo_linha, font=f_tipo) > disponivel_tipo:
+        tamanho_tipo -= 1
+        f_tipo = _carregar_fonte(FONTE_TITULO, tamanho_tipo)
+    tipo_desenho = tipo_linha
+    if draw.textlength(tipo_desenho, font=f_tipo) > disponivel_tipo:
+        while (
+            tipo_desenho
+            and draw.textlength(tipo_desenho + "...", font=f_tipo) > disponivel_tipo
+        ):
+            tipo_desenho = tipo_desenho[:-1]
+        tipo_desenho = tipo_desenho.rstrip() + "..."
     draw.text(
-        (x0 + 18, y_tipo0 + 8),
-        tipo_linha,
+        (x0 + 18, y_tipo0 + 8 + (24 - tamanho_tipo) // 2),
+        tipo_desenho,
         font=f_tipo,
         fill=estilo.texto,
     )
 
-    # Corpo do texto: quebra as linhas para caber na caixa.
-    texto_formatado = _quebrar_para_caixa(
+    # Corpo do texto: quebra em linhas já contando a largura dos símbolos
+    # (que não são texto), reduz a fonte se não couber e desenha tudo.
+    linhas, f_texto, d_simbolo, espaco_simbolo, altura_linha = _layout_regras(
         texto_regras,
         f_texto,
-        largura_util - 36,
         draw,
-        altura_max=(y_texto1 - y_texto0) - 24,
-        tamanho_fonte=23,
+        largura_util - 36,
+        (y_texto1 - y_texto0) - 24,
     )
-    draw.multiline_text(
-        (x0 + 18, y_texto0 + 12),
-        texto_formatado,
-        font=f_texto,
-        fill=(20, 20, 20),
-        spacing=5,
+    _desenhar_regras(
+        base,
+        draw,
+        x0 + 18,
+        y_texto0 + 12,
+        linhas,
+        f_texto,
+        d_simbolo,
+        espaco_simbolo,
+        altura_linha,
     )
 
     # --- selo de P/T no rodapé -------------------------------------------
@@ -798,6 +923,9 @@ def compor_frame(
         x_pt = x1 - 14 - (caixa_pt.width)
         y_pt = altura - MARGEM_EXTERNA - 40
         base.paste(caixa_pt, (x_pt, y_pt), caixa_pt)
+
+    # --- rodapé: sigilo próprio + aviso de "não oficial" -----------------
+    _rodape_carta(base, x0, altura, estilo)
 
     # --- soma final (aplica a máscara arredondada da carta) --------------
     final = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
@@ -834,48 +962,179 @@ def _caixa_pt(draw: ImageDraw.ImageDraw, texto: str, fonte, estilo: _Estilo) -> 
     return caixa
 
 
-def _quebrar_para_caixa(
-    texto: str,
+def _unidades_por_paragrafo(texto: str) -> List[List[str]]:
+    """Cada parágrafo (linha do texto original) vira uma lista de unidades.
+
+    Uma unidade é uma palavra ou um grupo de símbolos colados (``{2}{W}``):
+    é a menor coisa que não pode ser quebrada no meio. Parágrafos vazios
+    viram lista vazia, para preservar o espaçamento original.
+    """
+    paragrafos: List[List[str]] = []
+    for linha in str(texto).split("\n"):
+        paragrafos.append(linha.split() if linha.strip() else [])
+    return paragrafos
+
+
+def _medir_unidade(
+    unidade: str,
     fonte,
-    largura_max: int,
     draw: ImageDraw.ImageDraw,
+    d_simbolo: int,
+    espaco_simbolo: int,
+) -> float:
+    """Largura, em pixels, de uma unidade mista (texto + símbolos)."""
+    total = 0.0
+    anterior_simbolo = False
+    for tipo, valor in dividir(unidade):
+        if tipo == "simbolo":
+            if anterior_simbolo:
+                total += espaco_simbolo
+            total += d_simbolo
+            anterior_simbolo = True
+        else:
+            total += draw.textlength(valor, font=fonte)
+            anterior_simbolo = False
+    return total
+
+
+def _layout_regras(
+    texto: str,
+    fonte_inicial,
+    draw: ImageDraw.ImageDraw,
+    largura_max: int,
     altura_max: int,
-    tamanho_fonte: int,
-) -> str:
-    """Quebra o texto em linhas que caibam na largura da caixa, respeitando
-    as quebras de linha já existentes ("\\n" separa keywords/parágrafos).
-    Se o texto não couber na altura, reduz a fonte até caber (até um
-    limite) -- o mesmo truque das cartas reais, que encolhem o texto."""
-    tamanho = tamanho_fonte
+) -> Tuple[List[Optional[List[str]]], object, int, int, int]:
+    """Quebra o texto em linhas e escolhe o tamanho da fonte que cabe.
+
+    Devolve ``(linhas, fonte, diâmetro_do_símbolo, espaço_entre_símbolos,
+    altura_da_linha)``. Cada linha é uma lista de unidades; ``None`` marca
+    uma linha em branco (parágrafo vazio). Se o texto não couber na altura,
+    a fonte (e os símbolos, junto) encolhem até caber ou até 13 px -- o
+    mesmo truque das cartas reais.
+    """
+    tamanho = getattr(fonte_inicial, "size", 23)
     while True:
-        fonte_atual = _carregar_fonte(FONTE_TEXTO, tamanho)
-        linhas = _reflow(texto, fonte_atual, largura_max, draw)
-        altura = draw.multiline_textbbox((0, 0), linhas, font=fonte_atual, spacing=5)[3]
-        if altura <= altura_max or tamanho <= 13:
-            return linhas
+        fonte = _carregar_fonte(FONTE_TEXTO, tamanho)
+        d_simbolo = max(12, int(round(tamanho * 0.96)))
+        espaco_simbolo = max(1, d_simbolo // 8)
+        espaco = draw.textlength(" ", font=fonte)
+        ascent, descent = fonte.getmetrics()
+        altura_linha = ascent + descent + 5
+
+        linhas: List[Optional[List[str]]] = []
+        for unidades in _unidades_por_paragrafo(texto):
+            if not unidades:
+                linhas.append(None)
+                continue
+            atual: List[str] = []
+            largura_atual = 0.0
+            for unidade in unidades:
+                largura_unidade = _medir_unidade(
+                    unidade, fonte, draw, d_simbolo, espaco_simbolo
+                )
+                extra = largura_unidade if not atual else espaco + largura_unidade
+                if atual and largura_atual + extra > largura_max:
+                    linhas.append(atual)
+                    atual, largura_atual = [unidade], largura_unidade
+                else:
+                    atual.append(unidade)
+                    largura_atual += extra
+            if atual:
+                linhas.append(atual)
+
+        if len(linhas) * altura_linha <= altura_max or tamanho <= 13:
+            return linhas, fonte, d_simbolo, espaco_simbolo, altura_linha
         tamanho -= 1
 
 
-def _reflow(texto: str, fonte, largura_max: int, draw: ImageDraw.ImageDraw) -> str:
-    """Reorganiza cada linha original em linhas que caibam em `largura_max`
-    pixels. Nunca junta uma linha original com a seguinte."""
-    linhas_finais: List[str] = []
-    for linha_original in str(texto).split("\n"):
-        palavras = linha_original.split()
-        if not palavras:
+def _desenhar_regras(
+    base: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    x: int,
+    y: int,
+    linhas: List[Optional[List[str]]],
+    fonte,
+    d_simbolo: int,
+    espaco_simbolo: int,
+    altura_linha: int,
+) -> None:
+    """Desenha as linhas de `_layout_regras`, colando os símbolos RGBA.
+
+    `draw` e `base` precisam apontar para a mesma imagem (o texto é
+    desenhado pelo `draw` e os símbolos são colados na `base`).
+    """
+    ascent, descent = fonte.getmetrics()
+    espaco = draw.textlength(" ", font=fonte)
+    for linha in linhas:
+        if linha is None:
+            y += altura_linha
             continue
-        atual = ""
-        for palavra in palavras:
-            teste = f"{atual} {palavra}".strip()
-            if draw.textlength(teste, font=fonte) <= largura_max:
-                atual = teste
-            else:
-                if atual:
-                    linhas_finais.append(atual)
-                atual = palavra
-        if atual:
-            linhas_finais.append(atual)
-    return "\n".join(linhas_finais)
+        x_atual = x
+        anterior_simbolo = False
+        for i, unidade in enumerate(linha):
+            if i:
+                x_atual += espaco
+            for tipo, valor in dividir(unidade):
+                if tipo == "simbolo":
+                    if anterior_simbolo:
+                        x_atual += espaco_simbolo
+                    simbolo = desenhar_simbolo(valor, d_simbolo)
+                    y_simbolo = int(
+                        round(y + (ascent + descent - simbolo.height) / 2)
+                    )
+                    base.alpha_composite(
+                        simbolo, (int(round(x_atual)), y_simbolo)
+                    )
+                    x_atual += simbolo.width
+                    anterior_simbolo = True
+                else:
+                    # Pontuação logo depois de um símbolo ("{T}:") fica
+                    # colada nele; sem esse ajuste o espaço interno do
+                    # símbolo + o lado esquerdo da vírgula/dois-pontos
+                    # abriam um vão estranho.
+                    if anterior_simbolo and valor[:1] in ",.;:!?)]}":
+                        x_atual -= d_simbolo * 0.07
+                    draw.text(
+                        (x_atual, y), valor, font=fonte, fill=(20, 20, 20)
+                    )
+                    x_atual += draw.textlength(valor, font=fonte)
+                    anterior_simbolo = False
+        y += altura_linha
+
+
+def _rodape_carta(
+    base: Image.Image, x0: int, altura: int, estilo: _Estilo
+) -> None:
+    """Rodapé discreto: sigilo próprio + aviso de que a carta é fan-made.
+
+    Ocupa o canto inferior esquerdo (o selo de P/T fica à direita), no
+    lugar onde cartas reais trazem o símbolo do set e o crédito do artista.
+    """
+    cor = _misturar(estilo.texto, estilo.claro, 0.35)
+    desenho = ImageDraw.Draw(base)
+    y = altura - MARGEM_EXTERNA - 20
+    cx, cy, r = x0 + 7, y - 4, 5
+    desenho.polygon(
+        [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)],
+        fill=cor + (255,),
+    )
+    desenho.text(
+        (x0 + 18, y - 13),
+        "não oficial",
+        font=_carregar_fonte(FONTE_TITULO, 13),
+        fill=cor + (255,),
+    )
+
+
+def _misturar(
+    cor1: Tuple[int, int, int],
+    cor2: Tuple[int, int, int],
+    fator: float,
+) -> Tuple[int, int, int]:
+    """Interpola duas cores RGB (0 = cor1, 1 = cor2)."""
+    return tuple(
+        int(round(cor1[i] * (1 - fator) + cor2[i] * fator)) for i in range(3)
+    )
 
 
 def _gradiente_horizontal(
@@ -923,9 +1182,14 @@ def _aplicar_vinheta(
 
 # -- auxiliares de fonte/cor -------------------------------------------
 
+@lru_cache(maxsize=64)
 def _carregar_fonte(caminho: str, tamanho: int):
     """Carrega o .ttf pedido; se não existir (repo clonado sem as fontes),
-    devolve a fonte padrão do Pillow em vez de quebrar."""
+    devolve a fonte padrão do Pillow em vez de quebrar.
+
+    O cache importa: `_layout_regras` testa vários tamanhos até o texto
+    caber, e sem ele o arquivo .ttf seria lido dezenas de vezes por carta.
+    """
     try:
         return ImageFont.truetype(caminho, tamanho)
     except Exception:
