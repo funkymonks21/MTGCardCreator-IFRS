@@ -41,6 +41,11 @@ Uso
 
     carta = gerar_com_modelo("M2", "Serra Angel", "Branco", seed=42)
     carta = gerar_com_modelo("M3", "Serra Angel", "Branco", seed=42)
+
+    # refinar uma carta já gerada (o botão "Refinar texto" do app):
+    from pipeline.llm import refinar_como_m2
+
+    refinada = refinar_como_m2(carta_m1)
 """
 
 from __future__ import annotations
@@ -51,15 +56,15 @@ import random
 import re
 import urllib.error
 import urllib.request
+from dataclasses import replace
 from typing import Optional
 
 from .generator import (
-    COLOR_PIE,
     PESO_COR_PADRAO,
     Carta,
-    resolver_tipo,
     gerar_carta,
-    renderizar_imagem,
+    renderizar_carta,
+    resolver_tipo,
 )
 from .tipos import TIPOS_DISPLAY
 
@@ -568,22 +573,46 @@ def gerar_com_modelo(
 
 def _renderizar(carta: Carta, cor: str, usar_arte: bool, seed_arte, avisar_arte) -> None:
     """Re-renderiza a imagem depois que o texto da carta mudou."""
-    imagem, arte_da_api, arte_motivo = renderizar_imagem(
-        nome=carta.nome,
-        cor=cor,
-        cor_abrev=COLOR_PIE[cor]["abrev"],
-        tipo_linha=carta.tipo_linha or carta.tipo,
-        texto_regras=carta.texto_regras,
-        custo_mana=carta.custo_mana,
-        poder=carta.poder,
-        resistencia=carta.resistencia,
-        usar_arte=usar_arte,
-        seed_arte=seed_arte,
-        avisar_arte=avisar_arte,
+    renderizar_carta(
+        carta, usar_arte=usar_arte, seed_arte=seed_arte, avisar_arte=avisar_arte
     )
-    carta.imagem_final = imagem
-    carta.arte_da_api = arte_da_api
-    carta.arte_motivo = arte_motivo
+
+
+def refinar_como_m2(
+    carta: Carta, seed: Optional[int] = None, avisar=print
+) -> Carta:
+    """Aplica o refino do M2 a uma carta JÁ gerada (tipicamente do M1).
+
+    Diferente de `gerar_carta_m2`, não regera a estrutura: usa exatamente o
+    nome, tipo, custo, P/T e texto da carta recebida e troca só
+    `texto_regras`. É o "refinar esta carta" da demo -- o usuário vê o texto
+    do M1 e decide se manda o LLM reescrevê-lo.
+
+    Devolve uma cópia (a carta original fica intacta) com `modelo="M2"`;
+    se o refino falhar, a cópia mantém o texto do pipeline e `refinado=False`,
+    a mesma regra do runner do estudo.
+    """
+    if carta.modelo == "M3":
+        raise ValueError(
+            "O refino do M2 é do pipeline; cartas do M3 já vêm inteiras do LLM."
+        )
+    nova = replace(carta)
+    texto = refinar_texto(
+        nova.texto_regras,
+        nova.tipo_linha or nova.tipo,
+        seed=0 if seed is None else int(seed),
+        avisar=avisar,
+    )
+    nova.refinado = bool(texto) and texto != nova.texto_regras
+    if nova.refinado:
+        nova.texto_regras = texto
+    nova.modelo = "M2"
+    # Mantém a decisão de arte da carta original: quem saiu sem arte continua
+    # sem arte (o botão "Gerar arte" do app é que liga a ilustração).
+    renderizar_carta(
+        nova, usar_arte=nova.arte_da_api is not None, avisar_arte=avisar
+    )
+    return nova
 
 
 def ollama_disponivel(timeout: float = 1.5) -> bool:

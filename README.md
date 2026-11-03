@@ -450,6 +450,16 @@ Duas abas:
   M2 compartilham a semente, a estrutura é idêntica e a diferença de texto
   fica visível lado a lado.
 
+Depois de gerar, dois botões agem sobre a **carta exibida**:
+
+- **Refinar texto (M2)** — pega a carta do M1 e troca só o `texto_regras`,
+  sem regerar nada da estrutura (`refinar_como_m2`). É o fluxo "gerei no M1,
+  li o texto, quero só mandar refinar". Cartas do M3 não se aplicam: elas já
+  vêm inteiras do LLM.
+- **Gerar arte** — ilustra uma carta já pronta, de qualquer modelo. Serve
+  para gerar rápido, ler o texto, e só então pedir a arte (que é a parte
+  lenta).
+
 ### Local
 
 ```bash

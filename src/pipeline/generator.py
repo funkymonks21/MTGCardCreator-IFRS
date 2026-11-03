@@ -527,6 +527,38 @@ def renderizar_imagem(
     return imagem, arte_da_api, arte_motivo
 
 
+def renderizar_carta(
+    carta: "Carta",
+    usar_arte: bool = True,
+    seed_arte: Optional[int] = None,
+    avisar_arte=print,
+) -> "Carta":
+    """Re-renderiza a imagem de uma carta já montada e devolve a própria carta.
+
+    Existe para as ações "depois do fato": gerar a arte de uma carta que saiu
+    sem arte, ou refinar o texto do M1 e atualizar o desenho. `Carta` é
+    mutável de propósito, então quem guarda a carta (a interface, por
+    exemplo) vê o novo `imagem_final` sem recriar o objeto.
+    """
+    imagem, arte_da_api, arte_motivo = renderizar_imagem(
+        nome=carta.nome,
+        cor=carta.cor,
+        cor_abrev=COLOR_PIE[carta.cor]["abrev"],
+        tipo_linha=carta.tipo_linha or carta.tipo,
+        texto_regras=carta.texto_regras,
+        custo_mana=carta.custo_mana,
+        poder=carta.poder,
+        resistencia=carta.resistencia,
+        usar_arte=usar_arte,
+        seed_arte=seed_arte,
+        avisar_arte=avisar_arte,
+    )
+    carta.imagem_final = imagem
+    carta.arte_da_api = arte_da_api
+    carta.arte_motivo = arte_motivo
+    return carta
+
+
 def _imagem_placeholder(
     nome: str,
     cor: str,

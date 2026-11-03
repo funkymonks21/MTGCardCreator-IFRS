@@ -74,6 +74,8 @@ from pipeline import (  # noqa: E402
     OllamaIndisponivel,
     gerar_com_modelo,
     ollama_disponivel,
+    refinar_como_m2,
+    renderizar_carta,
 )
 
 # Valores de semente usados pelos exemplos: os mesmos do estudo, para que a
@@ -136,6 +138,10 @@ def _detalhes(carta, avisos, nome_pedido: str = "") -> str:
     if carta.modelo == "M2":
         estado = "sim" if carta.refinado else "não (texto do pipeline mantido)"
         linhas.append(f"**Refino aplicado:** {estado}")
+    if carta.arte_da_api is not None:
+        origem = "API (Pollinations)" if carta.arte_da_api else "fallback local"
+        detalhe = f" — {carta.arte_motivo}" if carta.arte_motivo else ""
+        linhas.append(f"**Arte:** {origem}{detalhe}")
     if avisos:
         linhas += ["", f"> ⚠️ {' '.join(avisos)}"]
     linhas += [
@@ -200,7 +206,59 @@ def gerar(
             f"O M3 não produziu uma carta válida nesta tentativa.\n\n{exc}\n\n"
             "A amostragem do LLM é estocástica: clique de novo para tentar outra."
         )
-    return carta.imagem_final, _detalhes(carta, avisos, nome)
+    return (
+        carta.imagem_final,
+        _detalhes(carta, avisos, nome),
+        (carta, nome),
+        gr.update(interactive=carta.modelo == "M1"),
+        gr.update(interactive=True),
+    )
+
+
+def refinar(estado):
+    """Refina o texto de uma carta do M1 já exibida -- vira a versão M2.
+
+    É o caminho "gerar no M1, ler o texto e só então mandar refinar": a
+    estrutura e o resto da ficha não mudam, só `texto_regras`.
+    """
+    if not estado:
+        raise gr.Error("Gere uma carta primeiro.")
+    carta, pedido = estado
+    if carta.modelo != "M1":
+        raise gr.Error(
+            "O refino do M2 parte do texto do pipeline. Gere uma carta no M1 "
+            "para refinar — cartas do M3 já vêm inteiras do LLM."
+        )
+
+    avisos = []
+    try:
+        nova = refinar_como_m2(carta, avisar=avisos.append)
+    except OllamaIndisponivel as exc:
+        raise gr.Error(
+            "O refino precisa do Ollama, e a chamada não funcionou.\n\n"
+            f"{exc}"
+        )
+    return (
+        nova.imagem_final,
+        _detalhes(nova, avisos, pedido),
+        (nova, pedido),
+        gr.update(interactive=False),
+    )
+
+
+def gerar_arte(estado):
+    """Gera a arte de uma carta já exibida, de qualquer modelo.
+
+    A carta nasce sem arte (rápido, offline); este botão é o "gostei do
+    texto, quero ver com ilustração". Se a API falhar, o fallback procedural
+    entra e o motivo aparece na ficha.
+    """
+    if not estado:
+        raise gr.Error("Gere uma carta primeiro.")
+    carta, pedido = estado
+    avisos = []
+    renderizar_carta(carta, usar_arte=True, avisar_arte=avisos.append)
+    return carta.imagem_final, _detalhes(carta, avisos, pedido), (carta, pedido)
 
 
 def comparar(nome, cor, seed, usar_arte, peso_cor, n_paragrafos, *ngramas):
@@ -269,6 +327,9 @@ def comparar(nome, cor, seed, usar_arte, peso_cor, n_paragrafos, *ngramas):
 def criar_app() -> gr.Blocks:
     """Monta a página. Separado de `main()` para o Colab reaproveitar."""
     with gr.Blocks(title="Gerador de cartas — M1/M2/M3") as demo:
+        # Guarda a última carta gerada (por sessão) para as ações "depois do
+        # fato": refinar o texto e gerar a arte sem regerar a carta.
+        estado = gr.State()
         gr.Markdown(
             "# Gerador de cartas de Magic\n"
             "O **mesmo** pipeline em três braços: **M1** (Markov + regressões), "
@@ -351,11 +412,29 @@ def criar_app() -> gr.Blocks:
                         label="Carta gerada", type="pil", height=520,
                         buttons=["download", "fullscreen"],
                     )
+                    with gr.Row():
+                        botao_refinar = gr.Button("Refinar texto (M2)", interactive=False)
+                        botao_arte = gr.Button("Gerar arte", interactive=False)
+                    gr.Markdown(
+                        "<small>**Refinar texto** só vale para cartas do M1. "
+                        "**Gerar arte** vale para qualquer modelo.</small>"
+                    )
                     ficha = gr.Markdown("_Clique em **Gerar carta**._")
 
             entradas = [modelo, nome, cor, tipo, seed, peso_cor, n_paragrafos, usar_arte, *ngramas]
-            botao.click(gerar, inputs=entradas, outputs=[imagem, ficha])
-            nome.submit(gerar, inputs=entradas, outputs=[imagem, ficha])
+            saidas = [imagem, ficha, estado, botao_refinar, botao_arte]
+            botao.click(gerar, inputs=entradas, outputs=saidas)
+            nome.submit(gerar, inputs=entradas, outputs=saidas)
+            botao_refinar.click(
+                refinar,
+                inputs=estado,
+                outputs=[imagem, ficha, estado, botao_refinar],
+            )
+            botao_arte.click(
+                gerar_arte,
+                inputs=estado,
+                outputs=[imagem, ficha, estado],
+            )
             botao_status.click(lambda: _resumo_ollama(), outputs=status)
 
             def ao_trocar_modelo(m):

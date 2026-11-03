@@ -8,6 +8,7 @@ from .generator import (
     TIPO_AUTOMATICO,
     TIPOS_DISPONIVEIS,
     gerar_carta,
+    renderizar_carta,
 )
 from .subtipos import ModeloSubtipos
 from .llm import (
@@ -19,6 +20,7 @@ from .llm import (
     gerar_carta_m3,
     gerar_com_modelo,
     ollama_disponivel,
+    refinar_como_m2,
     refinar_texto,
 )
 from .imagem import (
@@ -36,6 +38,7 @@ from .tipo_por_nome import InferenciaTipo, inferir_tipo_por_nome
 __all__ = [
     "gerar_carta",
     "Carta",
+    "renderizar_carta",
     "COLOR_PIE",
     "PESOS_NGRAMA_PADRAO",
     "PESO_COR_PADRAO",
@@ -57,6 +60,7 @@ __all__ = [
     "gerar_carta_m3",
     "gerar_com_modelo",
     "ollama_disponivel",
+    "refinar_como_m2",
     "refinar_texto",
     "gerar_arte",
     "gerar_arte_detalhada",
