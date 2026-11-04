@@ -1,15 +1,22 @@
 """
-Símbolos de mana e de habilidade desenhados em código (Pillow).
+Símbolos de mana e de habilidade da carta, em discos coloridos.
 
-Por que não baixar os símbolos prontos?
-=======================================
-Os símbolos de mana oficiais (os SVGs do Scryfall/Gatherer e as fontes de
-símbolos da comunidade) são marca da Wizards of the Coast. Baixá-los e
-redistribuí-los no app seria usar material de terceiros sem licença --
-justamente o que o resto do projeto evita (as fontes da moldura são SIL
-OFL, a arte é gerada ou procedural). Então desenhamos os nossos: discos
-coloridos com um glifo simples (sol, gota, lua, chama, árvore...), na
-mesma linguagem visual de uma carta de fantasia, mas originais.
+Duas camadas de desenho
+=======================
+1. **Fonte Mana** (`assets/fonts/mana.ttf`): quando o arquivo existe, o
+   glifo de cada símbolo vem dessa fonte livre e o módulo só desenha o
+   disco colorido por baixo. É o que deixa o resultado mais próximo de
+   uma carta de verdade (sol, gota, caveira, chama, árvore...).
+2. **Desenho em código** (`_glifo_*`): se a fonte não estiver presente
+   (clone sem os assets, por exemplo), os mesmos símbolos são desenhados
+   com elipses e polígonos do Pillow. Fica um pouco mais simples, mas a
+   carta continua sendo gerada.
+
+Sobre licença: a fonte Mana é distribuída sob SIL OFL 1.1 (ver
+`assets/fonts/mana-LICENSE.txt`), mas os DESENHOS dos símbolos de mana são
+marca da Wizards of the Coast. Aqui eles são usados num projeto acadêmico,
+fan-made e sem fins comerciais; sem a fonte, o app usa a camada 2, que é
+inteiramente original.
 
 O que é suportado
 =================
@@ -45,6 +52,31 @@ from PIL import Image, ImageDraw, ImageFont
 # sem `assets/fonts/`, cai na fonte padrão do Pillow sem quebrar.
 FONTE_SIMBOLO = "assets/fonts/Cinzel.ttf"
 
+# Fonte Mana (SIL OFL 1.1, https://mana.andrewgioia.com): traz o glifo de
+# cada símbolo no lugar de desenharmos um por um. O disco colorido e o
+# contorno continuam sendo desenhados aqui.
+FONTE_MANA = "assets/fonts/mana.ttf"
+
+# Código de cada símbolo na fonte Mana. Os genéricos seguem uma sequência
+# (0..15 = U+E605..U+E614, 16..20 = U+E62A..U+E62E). Híbridos e phyrexianos
+# não existem como glifo único: esses caem no desenho em código.
+_MAPA_FONTE: Dict[str, str] = {
+    "W": "\ue600",
+    "U": "\ue601",
+    "B": "\ue602",
+    "R": "\ue603",
+    "G": "\ue604",
+    "C": "\ue904",
+    "S": "\ue619",
+    "X": "\ue615",
+    "Y": "\ue616",
+    "Z": "\ue617",
+    "T": "\ue61a",
+    "Q": "\ue61b",
+}
+_MAPA_FONTE.update({str(n): chr(0xE605 + n) for n in range(16)})
+_MAPA_FONTE.update({str(n): chr(0xE62A + n - 16) for n in range(16, 21)})
+
 _PADRAO = re.compile(r"\{([^{}]+)\}")
 
 # Cores por símbolo. `fundo` é o disco, `borda` o contorno e `glifo` o
@@ -58,8 +90,8 @@ _CORES: Dict[str, Dict[str, Tuple[int, int, int]]] = {
     "G": {"fundo": (47, 105, 63), "borda": (18, 52, 30), "glifo": (228, 242, 219)},
     "C": {"fundo": (156, 150, 138), "borda": (58, 54, 46), "glifo": (246, 242, 231)},
     "S": {"fundo": (198, 216, 226), "borda": (62, 88, 104), "glifo": (30, 58, 74)},
-    "T": {"fundo": (154, 143, 120), "borda": (58, 52, 40), "glifo": (250, 246, 232)},
-    "Q": {"fundo": (154, 143, 120), "borda": (58, 52, 40), "glifo": (250, 246, 232)},
+    "T": {"fundo": (206, 202, 192), "borda": (70, 66, 58), "glifo": (45, 42, 36)},
+    "Q": {"fundo": (206, 202, 192), "borda": (70, 66, 58), "glifo": (45, 42, 36)},
     "GENERICO": {"fundo": (202, 196, 182), "borda": (62, 58, 48), "glifo": (34, 31, 26)},
 }
 
@@ -115,9 +147,9 @@ def desenhar_simbolo(chave: str, tamanho: int) -> Image.Image:
 
     partes = [p for p in chave.split("/") if p]
     if len(partes) == 2:
-        _desenhar_hibrido(desenho, partes[0], partes[1], lado)
+        _desenhar_hibrido(img, desenho, partes[0], partes[1], lado)
     else:
-        _desenhar_simples(desenho, chave, lado)
+        _desenhar_simples(img, desenho, chave, lado)
 
     return img.resize((tamanho, tamanho), Image.LANCZOS)
 
@@ -156,8 +188,14 @@ def desenhar_custo(custo: str, tamanho: int = 34, espaco: int = 4) -> Image.Imag
 # ---------------------------------------------------------------------------
 
 
-def _desenhar_simples(desenho: ImageDraw.ImageDraw, chave: str, lado: int) -> None:
-    """Disco colorido + glifo da cor/tipo."""
+def _desenhar_simples(
+    img: Image.Image, desenho: ImageDraw.ImageDraw, chave: str, lado: int
+) -> None:
+    """Disco colorido + glifo da cor/tipo.
+
+    O glifo vem da fonte Mana quando ela está disponível; senão é desenhado
+    em código (`_desenhar_glifo`), para o app nunca depender do arquivo.
+    """
     cores = _cores_para(chave if not chave.isdigit() else "GENERICO")
     margem = lado * 0.045
     caixa = [margem, margem, lado - margem, lado - margem]
@@ -167,7 +205,89 @@ def _desenhar_simples(desenho: ImageDraw.ImageDraw, chave: str, lado: int) -> No
         outline=cores["borda"],
         width=max(1, int(lado * 0.034)),
     )
-    _desenhar_glifo(desenho, chave, lado, cores)
+    if not _colar_glifo_fonte(img, chave, lado, cores["glifo"]):
+        _desenhar_glifo(desenho, chave, lado, cores)
+
+
+@lru_cache(maxsize=32)
+def _fonte_mana(tamanho: int):
+    """Fonte Mana no tamanho pedido, ou None se o arquivo não existir."""
+    try:
+        return ImageFont.truetype(FONTE_MANA, max(8, int(tamanho)))
+    except Exception:
+        return None
+
+
+@lru_cache(maxsize=512)
+def _mascara_glifo(chave: str, lado: int, fator: float):
+    """Máscara "L" do glifo de ``chave`` na fonte Mana, cortada e ajustada.
+
+    Devolve None quando a fonte não existe ou quando o símbolo não tem
+    glifo próprio (híbridos, phyrexianos, texto desconhecido). O desenho é
+    feito em resolução alta e reduzido, que é o que mantém a borda limpa
+    nos 22 px do texto de regras.
+    """
+    caractere = _MAPA_FONTE.get(chave)
+    if not caractere:
+        return None
+    grande = lado * 3
+    fonte = _fonte_mana(grande)
+    if fonte is None:
+        return None
+    tela = Image.new("L", (grande * 2, grande * 2), 0)
+    ImageDraw.Draw(tela).text(
+        (grande, grande), caractere, font=fonte, fill=255, anchor="mm"
+    )
+    caixa = tela.getbbox()
+    if not caixa:
+        return None
+    recorte = tela.crop(caixa)
+    alvo = max(2, int(round(lado * fator)))
+    escala = min(alvo / recorte.width, alvo / recorte.height)
+    tamanho = (
+        max(1, int(round(recorte.width * escala))),
+        max(1, int(round(recorte.height * escala))),
+    )
+    return recorte.resize(tamanho, Image.LANCZOS)
+
+
+def _colar_glifo_fonte(
+    img: Image.Image,
+    chave: str,
+    lado: int,
+    cor: Tuple[int, int, int],
+    fator: float = 0.60,
+    centro: Tuple[float, float] = (0.5, 0.5),
+    metade: str = "",
+) -> bool:
+    """Cola o glifo da fonte Mana em ``img``, pintado de ``cor``.
+
+    Devolve False se não houver glifo para a chave (quem chamou desenha o
+    próprio). ``centro`` é relativo ao lado (0..1), para posicionar o
+    glifo na metade certa de um símbolo híbrido; ``metade`` (``"esquerda"``
+    ou ``"direita"``) recorta o glifo na divisória, para um não invadir o
+    lado do outro.
+    """
+    mascara = _mascara_glifo(chave, lado, fator)
+    if mascara is None:
+        return False
+    x = int(round(centro[0] * lado - mascara.width / 2))
+    y = int(round(centro[1] * lado - mascara.height / 2))
+
+    if metade == "esquerda" and x + mascara.width > lado // 2:
+        corte = x + mascara.width - lado // 2
+        mascara = mascara.crop((0, 0, mascara.width - corte, mascara.height))
+    elif metade == "direita" and x < lado // 2:
+        corte = lado // 2 - x
+        mascara = mascara.crop((corte, 0, mascara.width, mascara.height))
+        x += corte
+    if mascara.width < 1 or mascara.height < 1:
+        return False
+
+    pintada = Image.new("RGBA", mascara.size, cor + (255,))
+    pintada.putalpha(mascara)
+    img.alpha_composite(pintada, (max(0, x), max(0, y)))
+    return True
 
 
 def _desenhar_glifo(
@@ -346,9 +466,18 @@ def _texto_central(desenho, texto: str, lado: int, cor) -> None:
 
 
 def _desenhar_hibrido(
-    desenho: ImageDraw.ImageDraw, primeira: str, segunda: str, lado: int
+    img: Image.Image,
+    desenho: ImageDraw.ImageDraw,
+    primeira: str,
+    segunda: str,
+    lado: int,
 ) -> None:
-    """Símbolo híbrido (``{W/U}``, ``{2/W}``): disco dividido ao meio."""
+    """Símbolo híbrido (``{W/U}``, ``{2/W}``): disco dividido ao meio.
+
+    Com a fonte Mana, cada metade recebe o glifo do seu símbolo, recortado
+    na divisória -- que é como as cartas de verdade fazem. Sem a fonte,
+    caem as iniciais (``W``/``U``) desenhadas em código.
+    """
     cores_1 = _cores_para(primeira if not primeira.isdigit() else "GENERICO")
     cores_2 = _cores_para(segunda if not segunda.isdigit() else "GENERICO")
     margem = lado * 0.045
@@ -366,8 +495,18 @@ def _desenhar_hibrido(
         fill=(24, 22, 19),
         width=max(1, int(lado * 0.018)),
     )
-    # Letras pequenas em cada metade: sem elas, um híbrido como {2/W}
-    # ficava só "meio cinza, meio branco" e não dava para ler o custo.
+
+    if _colar_glifo_fonte(
+        img, primeira, lado, cores_1["glifo"], fator=0.40,
+        centro=(0.27, 0.5), metade="esquerda",
+    ) and _colar_glifo_fonte(
+        img, segunda, lado, cores_2["glifo"], fator=0.40,
+        centro=(0.73, 0.5), metade="direita",
+    ):
+        return
+
+    # Sem a fonte: letras pequenas em cada metade. Sem elas, um híbrido
+    # como {2/W} ficava só "meio cinza, meio branco" e não dava para ler.
     _texto_na_metade(
         desenho, primeira, lado * 0.27, lado / 2, lado, cores_1["glifo"]
     )

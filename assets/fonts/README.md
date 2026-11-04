@@ -10,6 +10,14 @@ escolhas livres de aparência próxima.
 |--------------------|---------------|------------------------|---------|--------|
 | `Cinzel.ttf`       | Cinzel        | títulos (nome, tipo, P/T) | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/Cinzel) |
 | `EBGaramond.ttf`   | EB Garamond   | corpo do texto         | SIL OFL 1.1 | [Google Fonts](https://fonts.google.com/specimen/EB+Garamond) |
+| `mana.ttf`         | Mana          | símbolos de mana/habilidade | SIL OFL 1.1 | [mana.andrewgioia.com](https://mana.andrewgioia.com) |
+
+A `mana.ttf` é usada por `src/pipeline/simbolos.py` só para o **glifo** de
+cada símbolo (sol, gota, caveira, chama, árvore, seta...). O disco colorido
+e o contorno são desenhados em código. Os desenhos dos símbolos de mana são
+marca da Wizards of the Coast: aqui entram apenas como acabamento visual de
+um projeto acadêmico e fan-made, sem fins comerciais. Se o arquivo for
+removido, `simbolos.py` cai no desenho próprio em Pillow e nada quebra.
 
 São arquivos **variáveis** (`wght`), baixados do repositório
 [google/fonts](https://github.com/google/fonts). Se os arquivos não estiverem

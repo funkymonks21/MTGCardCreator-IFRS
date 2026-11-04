@@ -24,9 +24,9 @@ Decisões de design
   gradiente da cor, caixa de texto translúcida, selo de P/T, rodapé). Não
   usamos imagens/templates oficiais da Wizards (material protegido): o
   visual é uma releitura vetorial própria.
-- **Símbolos desenhados.** Os símbolos de custo e de habilidade também são
-  desenhados em código (`pipeline.simbolos`), em vez de baixar os SVGs
-  oficiais. Assim o app é distribuível sem carregar marca de terceiros.
+- **Símbolos.** Os símbolos de custo e de habilidade vêm de
+  `pipeline.simbolos`: disco desenhado em código + glifo da fonte livre
+  Mana (ou, sem ela, um glifo próprio em Pillow). Nada de SVG oficial.
 - **Fontes livres.** Título em Cinzel e corpo em EB Garamond, ambas SIL OFL
   (uso livre), versionadas em `assets/fonts/`. A Beleren/Matrix oficial é
   proprietária e não é distribuída aqui. Se as fontes não estiverem

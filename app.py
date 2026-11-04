@@ -513,10 +513,12 @@ def criar_app() -> gr.Blocks:
 
         gr.Markdown(
             "---\n"
-            "**Fan-made / não oficial.** A moldura, os símbolos de mana e a "
-            "arte procedural são desenhados em código; as fontes são livres "
-            "(SIL OFL) e nenhum asset da Wizards of the Coast é usado ou "
-            "distribuído. Uso acadêmico.\n\n"
+            "**Fan-made / não oficial.** A moldura e a arte procedural são "
+            "desenhadas em código e as fontes são livres (SIL OFL). Os "
+            "desenhos dos símbolos de mana são marca da Wizards of the "
+            "Coast e aparecem aqui via fonte Mana (OFL), como acabamento de "
+            "um trabalho acadêmico sem fins comerciais. Nenhum template ou "
+            "arte oficial é usado.\n\n"
             "Estudo: comparação M1/M2/M3 com cartas reais × fictícias, "
             "split holdout/reserva (D-006) e avaliação humana. "
             "Código e números em `experimentos/`."

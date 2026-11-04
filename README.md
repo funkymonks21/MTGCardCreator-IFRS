@@ -71,7 +71,7 @@ paleta; o tipo define a cena), chama uma API de imagem gratuita e **sem
 chave** ([Pollinations.ai](https://pollinations.ai/)) e desenha a moldura em
 código — borda preta com cantos arredondados, painel do título com gradiente
 da cor, janela da arte com vinheta, caixa de tipo, caixa de texto tipo
-pergaminho, **símbolos de mana desenhados** e selo de poder/resistência. As
+pergaminho, **símbolos de mana** e selo de poder/resistência. As
 fontes são livres (Cinzel para títulos, EB Garamond para o corpo — ambas SIL
 OFL, em `assets/fonts/`); a Beleren oficial é proprietária e **não** é
 distribuída aqui.
@@ -97,22 +97,27 @@ distribuída aqui.
 - **Trocando de provedor:** `ArtePollinations` isola a chamada HTTP no
   contrato `gerar(prompt, largura, altura, seed)`; trocar por Hugging Face,
   Stability etc. é implementar a mesma assinatura.
-- **Símbolos originais:** os símbolos de custo e de habilidade (`{2}{W}`,
-  `{T}`, `{X}`...) são desenhados em código em `src/pipeline/simbolos.py`
-  (discos coloridos + sol/gota/lua/chama/árvore/seta), **não** são os SVGs
-  oficiais da Wizards. Assim o app é distribuível sem carregar marca de
-  terceiros.
+- **Símbolos de mana e de habilidade** (`src/pipeline/simbolos.py`): cada
+  `{...}` do custo e do texto de regras vira um disco colorido com o glifo
+  do símbolo (`{2}{W}`, `{T}`, `{X}`, híbridos `{W/U}` e `{2/W}`...). O
+  glifo vem da fonte livre **Mana** (SIL OFL 1.1, em
+  `assets/fonts/mana.ttf`); se o arquivo não estiver presente, o módulo
+  desenha sol/gota/caveira/chama/árvore com polígonos do Pillow, então a
+  carta nunca deixa de ser gerada.
 
 Sem `usar_arte`, a carta **não** cai mais num placeholder rústico: usa a
 mesma moldura da carta com arte e troca só a ilustração por uma **arte
-procedural** (gradiente da cor + manchas de luz + marca d'água do símbolo),
-rápida e offline. No app, a ficha mostra "Arte: procedural local (a API não
-foi chamada)".
+procedural** (gradiente radial com a luz no alto, manchas de bruma, raios,
+marca d'água do símbolo, vinheta e grão), rápida e offline. No app, a ficha
+mostra "Arte: procedural local (a API não foi chamada)".
 
-> **Propriedade intelectual.** A moldura, os símbolos e a arte procedural são
-> desenhados em código; as fontes são SIL OFL. Nenhum asset oficial da
-> Wizards of the Coast é baixado ou redistribuído. As cartas são *fan-made*,
-> para uso acadêmico/demonstração, e o projeto não é afiliado à Wizards.
+> **Propriedade intelectual.** A moldura e a arte procedural são desenhadas
+> em código; as fontes são SIL OFL. Os **desenhos dos símbolos de mana** são
+> marca da Wizards of the Coast: aqui eles chegam pela fonte Mana (OFL) e são
+> usados só para dar acabamento realista a um trabalho **acadêmico, fan-made
+> e sem fins comerciais**. Nenhum template, arte ou SVG oficial é baixado ou
+> redistribuído; sem a fonte Mana, o app usa os símbolos próprios, desenhados
+> em código. O projeto não é afiliado à Wizards.
 
 **Inferência do tipo pelo nome** (`src/pipeline/tipo_por_nome.py`): com a
 opção `Automático (pelo nome)`, o sistema usa POS tagging do NLTK + WordNet
@@ -551,10 +556,10 @@ um Ollama em outra máquina), mas o padrão é `http://localhost:11434` com
       gradiente da cor, janela da arte, caixa de tipo, caixa de texto tipo
       pergaminho, selo de P/T e rodapé "não oficial", com fontes livres
       (Cinzel/EB Garamond) — `src/pipeline/imagem.py`
-- [x] **Símbolos de mana/habilidade desenhados em código** (W/U/B/R/G,
-      genéricos, X, híbridos, {T}/{Q}), sem usar SVGs oficiais e com
-      renderização no custo e no meio do texto de regras —
-      `src/pipeline/simbolos.py`
+- [x] **Símbolos de mana/habilidade** (W/U/B/R/G, incolor, neve,
+      genéricos, X, híbridos, {T}/{Q}) renderizados no custo e no meio do
+      texto de regras, com a fonte livre Mana (SIL OFL) e fallback próprio
+      desenhado em Pillow — `src/pipeline/simbolos.py`
 - [x] **Caminho sem arte usando a mesma moldura**, com arte procedural no
       lugar da ilustração (em vez do placeholder rústico) —
       `src/pipeline/generator.py` / `src/pipeline/imagem.py`
