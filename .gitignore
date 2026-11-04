@@ -1,6 +1,5 @@
 # Dados baixados/gerados (grandes demais e reproduzíveis via script)
 data/raw/*
-data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
