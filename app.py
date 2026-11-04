@@ -520,7 +520,8 @@ def criar_app() -> gr.Blocks:
             "um trabalho acadêmico sem fins comerciais. Nenhum template ou "
             "arte oficial é usado.\n\n"
             "Estudo: comparação M1/M2/M3 com cartas reais × fictícias, "
-            "split holdout/reserva (D-006) e avaliação humana. "
+            "split holdout/reserva (D-006); a avaliação humana fica como "
+            "trabalho futuro. "
             "Código e números em `experimentos/`."
         )
 

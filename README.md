@@ -172,7 +172,7 @@ versionados em `models/`.
 ## Stack
 
 - **Dados**: [Scryfall API](https://scryfall.com/docs/api) + Pandas / Numpy
-- **Texto**: NLTK, Gensim (Word2Vec), cadeia de Markov por tipo e cor
+- **Texto**: NLTK, cadeia de Markov por tipo e cor
 - **Estatística / ML**: Scikit-Learn
 - **LLM local (M2/M3)**: [Ollama](https://ollama.com) com `gemma3:4b`
 - **Imagem final da carta**: Pillow (moldura) + API de geração de imagem
@@ -442,9 +442,10 @@ M1/M2 são um único braço porque o refino do M2 só toca texto):
 Detalhes, matrizes de confusão e McNemar por subconjunto no §14 do caderno e em
 [`experimentos/relatorio_modo_b.md`](experimentos/relatorio_modo_b.md).
 
-**Avaliação humana (P-04)** — o teste que fecha o buraco do "realista":
+**Avaliação humana (P-04)** — o teste que fecharia o buraco do "realista":
 protocolo cego com 40 blocos de 4 cartas (M1, M2, M3 e a carta real como
-âncora), formulário offline e script de análise prontos. Falta a coleta.
+âncora), formulário offline e script de análise prontos. **A coleta não foi
+realizada neste trabalho**; fica registrada como trabalho futuro.
 Ver [`experimentos/avaliacao_humana/protocolo.md`](experimentos/avaliacao_humana/protocolo.md)
 e §15 do caderno.
 
