@@ -143,11 +143,24 @@ FONTE_TEXTO = "assets/fonts/EBGaramond.ttf"
 CORES_FRAME: Dict[str, Dict[str, str]] = {
     "W": {"claro": "#F3EED0", "escuro": "#D8CFA6", "texto": "#1A1A14"},
     "U": {"claro": "#BFD9EC", "escuro": "#7FA8C9", "texto": "#0F1B26"},
-    "B": {"claro": "#B9B0AA", "escuro": "#6E6560", "texto": "#141110"},
+    "B": {"claro": "#C6BEB8", "escuro": "#8E8480", "texto": "#141110"},
     "R": {"claro": "#EEB08B", "escuro": "#C9724A", "texto": "#26120A"},
     "G": {"claro": "#B9D2A9", "escuro": "#7FA36A", "texto": "#12200C"},
     # Incolor (artefatos/terrenos sem cor) -- cinza pedra.
     "C": {"claro": "#D8D5CE", "escuro": "#A9A49A", "texto": "#1A1917"},
+}
+
+# Paleta da ARTE PROCEDURAL. É mais escura e saturada que a da moldura de
+# propósito: a moldura é pastel (para o texto escuro ser legível), mas usar
+# os mesmos tons no fundo deixava a arte cinzenta e sem contraste. Aqui o
+# centro fica luminoso e as bordas afundam, como numa ilustração.
+_PALETA_ARTE: Dict[str, Dict[str, str]] = {
+    "W": {"claro": "#FFFCEA", "escuro": "#6F5C33"},
+    "U": {"claro": "#A6D8F2", "escuro": "#0E344F"},
+    "B": {"claro": "#7E736D", "escuro": "#0C0A09"},
+    "R": {"claro": "#FFC98A", "escuro": "#5C1C07"},
+    "G": {"claro": "#C3E3A4", "escuro": "#17350F"},
+    "C": {"claro": "#E9E5DB", "escuro": "#38352F"},
 }
 
 # Cache em disco das artes baixadas: evita repetir a chamada para o mesmo
@@ -524,31 +537,45 @@ def arte_fallback(
     """
     if largura is None or altura is None:
         largura, altura = tamanho_janela_arte()
-    base = CORES_FRAME.get(cor, CORES_FRAME["C"])
+    base = _PALETA_ARTE.get(cor, _PALETA_ARTE["C"])
     rng = random.Random((seed or 0) ^ _hash_int(nome))
     escuro = _hex_para_rgb(base["escuro"])
     claro = _hex_para_rgb(base["claro"])
+    branco = (255, 255, 255)
 
-    # 1) Fundo: gradiente radial (claro no centro, escuro nas bordas).
-    gradiente = Image.radial_gradient("L").resize((largura, altura), Image.LANCZOS)
-    gradiente = ImageOps.invert(gradiente)
-    img = ImageOps.colorize(gradiente, black=escuro, white=claro).convert("RGBA")
+    # 1) Fundo: gradiente radial com a luz um pouco ACIMA do centro (como
+    #    céu iluminando uma cena), escurecendo nas bordas.
+    img = ImageOps.colorize(
+        _gradiente_radial(largura, altura, cy=0.38),
+        black=escuro,
+        white=claro,
+    ).convert("RGBA")
 
-    # 2) Manchas de luz desfocadas, para dar profundidade.
+    # 2) Manchas de luz desfocadas (nuvens/brilho), para dar profundidade.
+    #    Só tons CLAROS: manchas escuras no meio apagavam justamente a
+    #    parte iluminada e deixavam tudo com aspecto de lama.
     manchas = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
     mdraw = ImageDraw.Draw(manchas)
-    for _ in range(7):
-        rx = rng.randint(max(8, largura // 9), max(12, largura // 3))
+    for _ in range(6):
+        rx = rng.randint(max(8, largura // 8), max(12, largura // 3))
         ry = int(rx * rng.uniform(0.55, 1.15))
         cx = rng.randint(0, largura)
         cy = rng.randint(0, altura)
-        if rng.random() < 0.3:
-            tom = tuple(max(0, int(v * 0.65)) for v in escuro)
-        else:
-            tom = tuple(min(255, int(v * rng.uniform(1.15, 1.45))) for v in claro)
+        tom = _misturar(claro, branco, rng.uniform(0.10, 0.45))
         mdraw.ellipse(
             [cx - rx, cy - ry, cx + rx, cy + ry],
-            fill=tom + (rng.randint(22, 52),),
+            fill=tom + (rng.randint(30, 62),),
+        )
+    # Duas sombras, só na metade de baixo, para "assentar" a cena.
+    for _ in range(2):
+        rx = rng.randint(max(10, largura // 5), max(14, largura // 2))
+        ry = int(rx * rng.uniform(0.4, 0.8))
+        cx = rng.randint(0, largura)
+        cy = rng.randint(int(altura * 0.55), altura)
+        tom = _misturar(escuro, (0, 0, 0), 0.35)
+        mdraw.ellipse(
+            [cx - rx, cy - ry, cx + rx, cy + ry],
+            fill=tom + (rng.randint(24, 46),),
         )
     manchas = manchas.filter(ImageFilter.GaussianBlur(radius=max(6, largura // 16)))
     img = Image.alpha_composite(img, manchas)
@@ -587,7 +614,7 @@ def arte_fallback(
     )
 
     # 5) Vinheta: escurece as bordas e puxa o olho para o centro.
-    vinheta = Image.radial_gradient("L").resize((largura, altura), Image.LANCZOS)
+    vinheta = ImageOps.invert(_gradiente_radial(largura, altura))
     sombra = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
     sombra.putalpha(vinheta.point(lambda v: int(v * 0.55)))
     img = Image.alpha_composite(img, sombra)
@@ -1135,6 +1162,30 @@ def _misturar(
     return tuple(
         int(round(cor1[i] * (1 - fator) + cor2[i] * fator)) for i in range(3)
     )
+
+
+def _gradiente_radial(
+    largura: int, altura: int, cx: float = 0.5, cy: float = 0.5
+) -> Image.Image:
+    """Gradiente radial "L": 255 no centro e 0 nas bordas, com o centro em
+    (``cx``, ``cy``) da imagem devolvida.
+
+    O `Image.radial_gradient` do Pillow só centraliza no meio; geramos uma
+    versão maior e recortamos o pedaço certo para poder subir a fonte de
+    luz (o "céu" da arte procedural fica mais claro que o chão).
+    """
+    folga = 2.2
+    grande = ImageOps.invert(
+        Image.radial_gradient("L").resize(
+            (int(largura * folga), int(altura * folga)), Image.LANCZOS
+        )
+    )
+    centro_x, centro_y = grande.width / 2, grande.height / 2
+    esquerda = int(round(centro_x - cx * largura))
+    topo = int(round(centro_y - cy * altura))
+    esquerda = max(0, min(esquerda, grande.width - largura))
+    topo = max(0, min(topo, grande.height - altura))
+    return grande.crop((esquerda, topo, esquerda + largura, topo + altura))
 
 
 def _gradiente_horizontal(
